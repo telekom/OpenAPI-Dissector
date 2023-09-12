@@ -99,3 +99,14 @@ This can be worked around by simply reloading the Lua scripts (Ctrl+Shift+L).
 - Implement some logic to match specification documents to the correct services (should improve both speed and overall detection of used operations)
 
 At least some of those improvements may need implementation of GUI elements or even a C-extension for wireshark.
+
+## License
+
+Copyright (c) 2023 Deutsche Telekom AG.
+
+Licensed under the GNU General Public License Version 2.0 (or later) (the "License"); you may not use this file except in compliance with the License.
+
+You may obtain a copy of the License by reviewing the file LICENSE in the repository or by downloading the respective version from
+https://www.gnu.org/licenses/
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the LICENSE for the specific language governing permissions and limitations under the [LICENSE](./LICENSE).
