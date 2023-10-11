@@ -64,9 +64,11 @@ Copy the following files into that directory:
 
 ## Usage
 
-On launching a new Wireshark instance the plugin should be automatically loaded.
+On launching a new Wireshark instance the plugin should be automatically loaded. Or select in Wireshark the button Analyze->Reload Lua Plugins.
 
 The dissector attaches itself as postdissector to all HTTP2 packets, so no further configuration is needed as of now.
+
+Now you can apply `openapi` as display filter for Wireshark. 
 
 ## Limitations
 
