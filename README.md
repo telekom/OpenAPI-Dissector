@@ -39,7 +39,7 @@ git clone -b REL-17 https://forge.3gpp.org/rep/all/5G_APIs 5GC_APIs
 python3 generate.py
 ```
 
-A file `openapi_spec.lua` will be created in the generator directory.
+`gererate.py` processes the 3GPP release specific OpenAPI yaml files which have to be copied into the `5GC_APIs` sub-directory and as a result the `openapi_spec.lua` is created in the generator directory.
 
 ### Download json library
 
