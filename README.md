@@ -31,7 +31,7 @@ but it could potentially be adapted for other APIs as well.
 
 ### Generate spec file
 
-First you'll need to generate a spec file, this can be done using a few commands:
+First step is to generate a spec file (i.e. `openapi_spec.lua`) derived from a specific 3GPP Release. This can be done using a few commands to clone or copy from 3GPP git (https://forge.3gpp.org/rep/all/5G_APIs) the related yaml files for a specific 3GPP-Release (e.g. 3GPP Rel-17) into the `5GC_APIs` sub-directory:
 
 ```bash
 cd generator/
@@ -39,7 +39,7 @@ git clone -b REL-17 https://forge.3gpp.org/rep/all/5G_APIs 5GC_APIs
 python3 generate.py
 ```
 
-`gererate.py` processes the 3GPP release specific OpenAPI yaml files which have to be copied into the `5GC_APIs` sub-directory and as a result the `openapi_spec.lua` is created in the generator directory.
+`gererate.py` processes the 3GPP-Release specific OpenAPI yaml files which have to be copied into the `5GC_APIs` sub-directory and as a result the `openapi_spec.lua` is created in the generator directory.
 
 ### Download json library
 
