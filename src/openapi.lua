@@ -371,32 +371,32 @@ function openapi_proto.dissector(buf, pinfo, tree)
         if operation_description ~= "" then
           short_description = string.format("OpenAPI Request (%s)", operation_description)
           if http2_transfer["type"] == 1 then
-            pinfo_description = string.format("OpenAPI Req-Hdr (%s)", operation_description)
+            pinfo_description = string.format("Req-Hdr (%s)", operation_description)
           else
-            pinfo_description = string.format("OpenAPI Req-Dat (%s)", operation_description)
+            pinfo_description = string.format("Req-Dat (%s)", operation_description)
           end
         else
           short_description = string.format("OpenAPI Request")
           if http2_transfer["type"] == 1 then
-            pinfo_description = string.format("OpenAPI Req-Hdr")
+            pinfo_description = string.format("Req-Hdr")
           else
-            pinfo_description = string.format("OpenAPI Req-Dat")
+            pinfo_description = string.format("Req-Dat")
           end
         end
       else
         if operation_description ~= "" then
           short_description = string.format("OpenAPI Response (%s)", operation_description)
           if http2_transfer["type"] == 1 then
-            pinfo_description = string.format("OpenAPI Res-Hdr (%s)", operation_description)
+            pinfo_description = string.format("Res-Hdr (%s)", operation_description)
           else
-            pinfo_description = string.format("OpenAPI Res-Dat (%s)", operation_description)
+            pinfo_description = string.format("Res-Dat (%s)", operation_description)
           end
         else
           short_description = string.format("OpenAPI Response")
           if http2_transfer["type"] == 1 then
-            pinfo_description = string.format("OpenAPI Res-Hdr")
+            pinfo_description = string.format("Res-Hdr")
           else
-            pinfo_description = string.format("OpenAPI Res-Dat")
+            pinfo_description = string.format("Res-Dat")
           end
         end
       end
@@ -407,7 +407,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
 
       if packet_description == "" then
-        packet_description = pinfo_description
+        packet_description = "OpenAPI: " .. pinfo_description
       else
         packet_description = packet_description .. ", " .. pinfo_description
       end
