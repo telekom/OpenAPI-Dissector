@@ -109,33 +109,106 @@ function validate_request(request_info, request_spec, callbacks)
   local content_spec = openapi_get_value(request_spec, "content")
   if content_spec == nil then return end
 
-  if validators[request_info["content_type"]] == nil then
-    for k, v in pairs(validators) do
-      if rex_pcre2.match(k, "^application/.*json") then
-        if validators[k] == nil then
-          validators[k] = validators["application/json"]
-        end
-        request_info["content_type"] = k
-      end
-    end
+  local content_type = request_info["content_type"]
+  local content_type_semicol = string.find(content_type, ";")
+  if content_type_semicol then
+    content_type = string.sub(request_info["content_type"], 1, content_type_semicol - 1)
   end
 
-  if validators[request_info["content_type"]] ~= nil and content_spec[request_info["content_type"]] ~= nil then
-    local content_spec = openapi_get_value(content_spec, request_info["content_type"])
-    local schema = openapi_get_value(content_spec, "schema")
-    local errors = {}
-    local extra_info = {}
-    extra_info["type"] = "request"
-    extra_info["callback_map"] = callback_map
-    extra_info["callback_spec"] = callback_spec
-    local valid = validators[request_info["content_type"]](request_info["data"], schema, "root", errors, extra_info)
-    local out = ""
-    if not valid then
-      for _, err in pairs(errors) do
-        table.insert(request_info["errors"], "Validation: " .. err)
+  -- handling of mixed containers with json and other data
+  local parts = {}
+  if content_type == "multipart/related" then
+    local data = request_info["data"]
+
+    -- TODO: this could probably be solved better...
+    local boundary = string.sub(request_info["content_type"], content_type_semicol)
+    boundary = "--" .. string.sub(boundary, string.find(boundary, "boundary=") + 10, -2)
+
+    local part_idx = 0
+    local part_header_search = false
+    while true do
+      if string.len(data) == (string.len(boundary) + 4) then break end
+      if string.sub(data, 1, string.len(boundary)) == boundary then
+        part_idx = part_idx + 1
+        parts[part_idx] = {}
+        parts[part_idx]["headers_raw"] = ""
+        parts[part_idx]["headers"] = {}
+        parts[part_idx]["data"] = ""
+        parts[part_idx]["schema"] = nil
+        part_header_search = true
+        data = string.sub(data, string.len(boundary) + 3)
+      end
+      if part_header_search then
+        if string.sub(data, 1, 4) == "\r\n\r\n" then
+          parts[part_idx]["headers_raw"] = parts[part_idx]["headers_raw"] .. "\r\n"
+          part_header_search = false
+          while string.find(parts[part_idx]["headers_raw"], "\r\n") do
+            local header = string.sub(parts[part_idx]["headers_raw"], 1, string.find(parts[part_idx]["headers_raw"], "\r\n") - 1)
+            parts[part_idx]["headers_raw"] = string.sub(parts[part_idx]["headers_raw"], string.find(parts[part_idx]["headers_raw"], "\r\n") + 2)
+            local header_name = string.sub(header, 1, string.find(header, ": ") - 1)
+            local header_value = string.sub(header, string.find(header, ": ") + 2)
+            parts[part_idx]["headers"][header_name] = header_value
+          end
+          if parts[part_idx]["headers"]["Content-Type"] then
+            local ct_encodings = openapi_get_value(content_spec["multipart/related"], "encoding")
+            for ct_enc_name, ct_enc in pairs(ct_encodings) do
+              local ct_mp_schema = openapi_get_value(content_spec["multipart/related"], "schema")
+              local ct_mp_schema_properties = openapi_get_value(ct_mp_schema, "properties")
+              local ct_schema = openapi_get_value(ct_mp_schema_properties, ct_enc_name)
+              if ct_enc["contentType"] == parts[part_idx]["headers"]["Content-Type"] then
+                parts[part_idx]["schema"] = ct_schema
+              end
+            end
+          end
+          data = string.sub(data, 4)
+        else
+          parts[part_idx]["headers_raw"] = parts[part_idx]["headers_raw"] .. string.sub(data, 1, 1)
+        end
+      else
+        parts[part_idx]["data"] = parts[part_idx]["data"] .. string.sub(data, 1, 1)
+      end
+      data = string.sub(data, 2)
+      if data == "" then
+        break
       end
     end
-    return valid
+  else
+    parts[1] = {}
+    parts[1]["data"] = request_info["data"]
+    parts[1]["headers"] = {}
+    parts[1]["headers"]["Content-Type"] = request_info["content_type"]
+    local part_content_spec = openapi_get_value(content_spec, request_info["content_type"])
+    parts[1]["schema"] = openapi_get_value(part_content_spec, "schema")
+  end
+
+  for i, part in pairs(parts) do
+    if part["headers"]["Content-Type"] == nil then
+      for k, v in pairs(validators) do
+        if rex_pcre2.match(k, "^application/.*json") then
+          if validators[k] == nil then
+            validators[k] = validators["application/json"]
+          end
+          part["headers"]["Content-Type"] = k
+        end
+      end
+    end
+
+    if validators[part["headers"]["Content-Type"]] ~= nil and part["schema"] ~= nil then
+      local errors = {}
+      local extra_info = {}
+      extra_info["type"] = "request"
+      extra_info["callback_map"] = callback_map
+      extra_info["callback_spec"] = callback_spec
+      print(part["data"])
+      local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info)
+      local out = ""
+      if not valid then
+        for _, err in pairs(errors) do
+          table.insert(request_info["errors"], "Validation: " .. err)
+        end
+      end
+      return valid
+    end
   end
 end
 
