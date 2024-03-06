@@ -305,6 +305,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
   end
 
   -- parse collected information
+  local packet_description = ""
   for http2_transfer_idx, http2_transfer in pairs(http2_transfers) do
     -- ignore everything but headers and data
     if http2_transfer["type"] ~= 0 and http2_transfer["type"] ~= 1 then goto http2_transfers_loop_end end
@@ -357,24 +358,69 @@ function openapi_proto.dissector(buf, pinfo, tree)
 
     -- ignore visited
     if pinfo.visited then
+      local short_description = "OpenAPI"
+      local pinfo_description = ""
+      local operation_description = ""
+      if request_info["operation"] then
+        operation_description = request_info["operation"]
+      elseif request_info["summary"] then
+        operation_description = string.sub(request_info["summary"], 1, 20)
+      end
+
+      if packet_type == "request" then
+        if operation_description ~= "" then
+          short_description = string.format("OpenAPI Request (%s)", operation_description)
+          if http2_transfer["type"] == 1 then
+            pinfo_description = string.format("OpenAPI Req-Hdr (%s)", operation_description)
+          else
+            pinfo_description = string.format("OpenAPI Req-Dat (%s)", operation_description)
+          end
+        else
+          short_description = string.format("OpenAPI Request")
+          if http2_transfer["type"] == 1 then
+            pinfo_description = string.format("OpenAPI Req-Hdr")
+          else
+            pinfo_description = string.format("OpenAPI Req-Dat")
+          end
+        end
+      else
+        if operation_description ~= "" then
+          short_description = string.format("OpenAPI Response (%s)", operation_description)
+          if http2_transfer["type"] == 1 then
+            pinfo_description = string.format("OpenAPI Res-Hdr (%s)", operation_description)
+          else
+            pinfo_description = string.format("OpenAPI Res-Dat (%s)", operation_description)
+          end
+        else
+          short_description = string.format("OpenAPI Response")
+          if http2_transfer["type"] == 1 then
+            pinfo_description = string.format("OpenAPI Res-Hdr")
+          else
+            pinfo_description = string.format("OpenAPI Res-Dat")
+          end
+        end
+      end
+
       -- TODO: make info more readable, especially for packets with multiple http2/openapi segments
       if not string.find(tostring(pinfo.cols.protocol), "OpenAPI") then
         pinfo.cols.protocol = tostring(pinfo.cols.protocol) .. "/OpenAPI"
       end
-      if pinfo.number == request_info["headers_frame"] then
-        pinfo.cols.info = tostring(pinfo.cols.info) .. ", " .. string.format("OpenAPI Request-Header %s %s", request_info["method"], request_info["path"])
-      end
-      if pinfo.number == request_info["data_frame"] then
-        pinfo.cols.info = tostring(pinfo.cols.info) .. ", " .. string.format("OpenAPI Request-Data (%s bytes)", request_info["data_length"])
-      end
-      if pinfo.number == response_info["headers_frame"] then
-        pinfo.cols.info = tostring(pinfo.cols.info) .. ", " .. string.format("OpenAPI Response-Headers (%s)", response_info["status"])
-      end
-      if pinfo.number == response_info["data_frame"] then
-        pinfo.cols.info = tostring(pinfo.cols.info) .. ", " .. string.format("OpenAPI Response-Data (%s bytes)", response_info["data_length"])
+
+      if packet_description == "" then
+        packet_description = pinfo_description
+      else
+        packet_description = packet_description .. ", " .. pinfo_description
       end
 
-      local toptree = tree:add(openapi_proto, "OpenAPI")
+      -- skip tree rendering if headers and data are contained in the same packet (avoids duplicate identical tree in overview)
+      if packet_type == "request" and tonumber(request_info["headers_frame"]) == tonumber(request_info["data_frame"]) and http2_transfer["type"] == 0 then
+        goto http2_transfers_loop_end
+      elseif packet_type == "response" and tonumber(response_info["headers_frame"]) == tonumber(response_info["data_frame"]) and http2_transfer["type"] == 0 then
+        goto http2_transfers_loop_end
+      end
+
+      local toptree
+      toptree = tree:add(openapi_proto, short_description)
       local subtree = toptree:add(openapi_proto, "Operation")
       local request_subtree = toptree:add(openapi_proto, "Request")
       local response_subtree = toptree:add(openapi_proto, "Response")
@@ -465,8 +511,8 @@ function openapi_proto.dissector(buf, pinfo, tree)
           if path_spec["document"] ~= nil then
             request_info["spec"] = path_spec["document"]
           end
-          if path_spec["operation"] ~= nil then
-            request_info["operation"] = path_spec["operation"]
+          if path_spec["operationId"] ~= nil then
+            request_info["operation"] = path_spec["operationId"]
           elseif callback then
             request_info["operation"] = "Callback " .. callback["key"]
           end
@@ -566,6 +612,9 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
     end
     ::http2_transfers_loop_end::
+  end
+  if packet_description ~= "" then
+    pinfo.cols.info = packet_description
   end
 end
 
