@@ -75,7 +75,6 @@ Now you can apply `openapi` as display filter for Wireshark.
 - Only basic validation of URL parts and no validation for URL query arguments
 - Supports only HTTP2 for now (primary use case was analyzing 5G traffic, which mainly uses HTTP2 for communication)
 - Incomplete support for anyOf/allOf/oneOf/not keywords (because of undefined behaviour in spec)
-- Issues with multiple HTTP2 messages inside a single TCP packet
 - No support for predefined data types (e.g. email, uuid, ...)
 - Handling of callbacks needs a lot of work, current implementation lacks handling of most of the possible target locations
 - Since this is currently a postdissector it can only run on a second pass, which does not happen during Wiresharks live capture mode
@@ -94,7 +93,6 @@ This can be worked around by simply reloading the Lua scripts (Ctrl+Shift+L).
 - All of the current limitations should obviously be improved
 - Improve handling of missing HTTP2 header fields (due to compression in http2 combined with eventually missing packets in pcap)
 - Implementing HTTP/1.x support
-- Support JSON data inside of multipart containers
 - Easy filtering on data inside of OpenAPI packets (currently only possible using a regex workaround)
 - Multi-Version support (5G core networks sometimes use a mix of different API releases, we may need support for this)
 - Manual selection of correct operation on potential mismatch
