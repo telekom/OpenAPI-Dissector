@@ -199,7 +199,6 @@ function validate_request(request_info, request_spec, callbacks)
       extra_info["type"] = "request"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = callback_spec
-      print(part["data"])
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info)
       local out = ""
       if not valid then
