@@ -625,10 +625,10 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
 
       if response_info["headers_frame"] ~= nil then
-        response_subtree:add(openapi_proto.fields.request_headers_frame, response_info["headers_frame"]):set_generated()
+        response_subtree:add(openapi_proto.fields.response_headers_frame, response_info["headers_frame"]):set_generated()
       end
       if response_info["data_frame"] ~= nil then
-        response_subtree:add(openapi_proto.fields.request_data_frame, response_info["data_frame"]):set_generated()
+        response_subtree:add(openapi_proto.fields.response_data_frame, response_info["data_frame"]):set_generated()
       end
       if response_info["data"] ~= nil then
         response_subtree:add(openapi_proto.fields.response_data, response_info["data"]):set_generated()
