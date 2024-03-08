@@ -502,8 +502,8 @@ function validate_json(content, schema, path, errors, extra_infos)
     else
       print("Unknown schema type '" .. schema_type .. "' at " .. path)
       table.insert(errors, "Unknown schema type '" .. schema_type .. "' at " .. path)
+      return false
     end
-    return false
   end
 
   -- fallthrough: at least one part above has matched and not found any issues

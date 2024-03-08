@@ -199,7 +199,11 @@ function validate_request(request_info, request_spec, callbacks)
       extra_info["callback_spec"] = callback_spec
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info)
       local out = ""
-      if not valid then
+      if valid then
+        for _, err in pairs(errors) do
+          table.insert(request_info["warnings"], "Validation: " .. err)
+        end
+      else
         for _, err in pairs(errors) do
           table.insert(request_info["errors"], "Validation: " .. err)
         end
@@ -234,7 +238,11 @@ function validate_response(request_info, response_info, response_spec)
     for i, v in pairs(errors) do
       out = out .. v .. "\n"
     end
-    if not valid then
+    if valid then
+      for _, err in pairs(errors) do
+        table.insert(response_info["warnings"], "Validation: " .. err)
+      end
+    else
       for _, err in pairs(errors) do
         table.insert(response_info["errors"], "Validation: " .. err)
       end
