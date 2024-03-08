@@ -93,35 +93,12 @@ end
 local validators = {}
 validators["application/json"] = json_validator.validate_raw_json
 
-function validate_request(request_info, request_spec, callbacks)
-  local callback_spec = {}
-  if callbacks then
-    for i, v in pairs(callbacks) do
-      for j, w in pairs(v) do
-        callback_spec[j] = {}
-        callback_spec[j]["key"] = i
-        callback_spec[j]["path_spec"] = openapi_get_value(w, string.lower(request_info["method"]))
-        callback_spec[j]["source"] = request_info
-      end
-    end
-  end
-
-  local content_spec = openapi_get_value(request_spec, "content")
-  if content_spec == nil then return end
-
-  local content_type = request_info["content_type"]
-  local content_type_semicol = string.find(content_type, ";")
-  if content_type_semicol then
-    content_type = string.sub(request_info["content_type"], 1, content_type_semicol - 1)
-  end
-
-  -- handling of mixed containers with json and other data
+function parse_multipart_message(data, content_type, content_spec)
   local parts = {}
-  if content_type == "multipart/related" then
-    local data = request_info["data"]
-
+  if string.sub(content_type, 1, 17) == "multipart/related" then
     -- TODO: this could probably be solved better...
-    local boundary = string.sub(request_info["content_type"], content_type_semicol)
+    local content_type_semicol = string.find(content_type, ";")
+    local boundary = string.sub(content_type, content_type_semicol)
     boundary = "--" .. string.sub(boundary, string.find(boundary, "boundary=") + 10, -2)
 
     local part_idx = 0
@@ -174,22 +151,43 @@ function validate_request(request_info, request_spec, callbacks)
     end
   else
     parts[1] = {}
-    parts[1]["data"] = request_info["data"]
+    parts[1]["data"] = data
     parts[1]["headers"] = {}
-    parts[1]["headers"]["Content-Type"] = request_info["content_type"]
-    local part_content_spec = openapi_get_value(content_spec, request_info["content_type"])
+    parts[1]["headers"]["Content-Type"] = content_type
+    local part_content_spec = openapi_get_value(content_spec, content_type)
     parts[1]["schema"] = openapi_get_value(part_content_spec, "schema")
   end
+  return parts
+end
+
+function validate_request(request_info, request_spec, callbacks)
+  local callback_spec = {}
+  if callbacks then
+    for i, v in pairs(callbacks) do
+      for j, w in pairs(v) do
+        callback_spec[j] = {}
+        callback_spec[j]["key"] = i
+        callback_spec[j]["path_spec"] = openapi_get_value(w, string.lower(request_info["method"]))
+        callback_spec[j]["source"] = request_info
+      end
+    end
+  end
+
+  local content_spec = openapi_get_value(request_spec, "content")
+  if content_spec == nil then return end
+
+  -- handling of mixed containers with json and other data
+  local parts = parse_multipart_message(request_info["data"], request_info["content_type"], content_spec)
 
   for i, part in pairs(parts) do
+    -- workaround for missing headers due to http2 compression
     if part["headers"]["Content-Type"] == nil then
-      for k, v in pairs(validators) do
-        if rex_pcre2.match(k, "^application/.*json") then
-          if validators[k] == nil then
-            validators[k] = validators["application/json"]
-          end
-          part["headers"]["Content-Type"] = k
-        end
+      part["headers"]["Content-Type"] = "application/json"
+    end
+
+    if validators[part["headers"]["Content-Type"]] == nil then
+      if rex_pcre2.match(part["headers"]["Content-Type"], "^application/.*json") then
+        validators[part["headers"]["Content-Type"]] = validators["application/json"]
       end
     end
 
@@ -207,6 +205,8 @@ function validate_request(request_info, request_spec, callbacks)
         end
       end
       return valid
+    else
+      table.insert(request_info["warnings"], "No validator was applied to this request (probably because of missing or weird content type header)")
     end
   end
 end
@@ -216,13 +216,8 @@ function validate_response(request_info, response_info, response_spec)
   if content_spec == nil then return end
 
   if validators[response_info["content_type"]] == nil then
-    for k, v in pairs(validators) do
-      if rex_pcre2.match(k, "^application/.*json") then
-        if validators[k] == nil then
-          validators[k] = validators["application/json"]
-        end
-        response_info["content_type"] = k
-      end
+    if rex_pcre2.match(response_info["content_type"], "^application/.*json") then
+      validators[response_info["content_type"]] = validators["application/json"]
     end
   end
 
@@ -245,6 +240,8 @@ function validate_response(request_info, response_info, response_spec)
       end
     end
     return valid
+  else
+    table.insert(response_info["warnings"], "No validator was applied to this response (probably because of missing or weird content type header)")
   end
 end
 
