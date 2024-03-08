@@ -82,8 +82,8 @@ function openapi_proto.init()
   resp_map = {}
   if gui_enabled() then
     set_color_filter_slot(1, "openapi.error || openapi.request.error || openapi.response.error")
+    set_color_filter_slot(8, "openapi.warning || openapi.request.warning || openapi.response.warning")
   end
-
 end
 
 function hexdecode(hex)
