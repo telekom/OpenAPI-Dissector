@@ -159,7 +159,11 @@ function parse_multipart_message(data, content_type, content_spec)
     parts[1]["headers"] = {}
     parts[1]["headers"]["Content-Type"] = content_type
     local part_content_spec = openapi_get_value(content_spec, content_type)
-    parts[1]["schema"] = openapi_get_value(part_content_spec, "schema")
+    if part_content_spec then
+      parts[1]["schema"] = openapi_get_value(part_content_spec, "schema")
+    else
+      parts[1]["schema"] = nil
+    end
   end
   return parts
 end
