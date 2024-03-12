@@ -99,7 +99,11 @@ function parse_multipart_message(data, content_type, content_spec)
     -- TODO: this could probably be solved better...
     local content_type_semicol = string.find(content_type, ";")
     local boundary = string.sub(content_type, content_type_semicol)
-    boundary = "--" .. string.sub(boundary, string.find(boundary, "boundary=") + 10, -2)
+    local boundary = string.sub(boundary, string.find(boundary, "boundary=") + 9, -1)
+    if string.sub(boundary, 1, 1) == '"' or string.sub(boundary, 1, 1) == "'" then
+      boundary = string.sub(boundary, 2, -2)
+    end
+    boundary = "--" .. boundary
 
     local part_idx = 0
     local part_header_search = false
