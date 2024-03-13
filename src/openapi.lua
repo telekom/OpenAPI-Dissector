@@ -588,6 +588,9 @@ function openapi_proto.dissector(buf, pinfo, tree)
 
         request_info["path_valid"] = false
         if #path_specs > 0 then
+          if #path_specs > 1 then
+            table.insert(request_info["warnings"], "Multiple matching paths found, using first")
+          end
           path_spec = path_specs[1] -- TODO: allow multiple matching specs or sort to correct NF?
 
           request_info["path_valid"] = true
