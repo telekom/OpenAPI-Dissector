@@ -57,6 +57,7 @@ openapi_proto.fields.request_method = ProtoField.string("openapi.request.method"
 openapi_proto.fields.request_content_type = ProtoField.string("openapi.request.content_type", "Request Content-Type")
 openapi_proto.fields.request_path = ProtoField.string("openapi.request.path", "Request Path")
 openapi_proto.fields.request_path_valid = ProtoField.bool("openapi.request.path_valid", "Request Path Valid")
+openapi_proto.fields.request_valid = ProtoField.string("openapi.request.valid", "Request Validated")
 openapi_proto.fields.request_error = ProtoField.string("openapi.request.error", "Request Error")
 openapi_proto.fields.request_warning = ProtoField.string("openapi.request.warning", "Request Warning")
 
@@ -72,6 +73,7 @@ openapi_proto.fields.response_headers_frame = ProtoField.framenum("openapi.respo
 openapi_proto.fields.response_status = ProtoField.uint32("openapi.response.status", "Response Status")
 openapi_proto.fields.response_content_type = ProtoField.string("openapi.response.content_type", "Response Content-Type")
 openapi_proto.fields.response_location = ProtoField.string("openapi.response.location", "Response Redirect Location")
+openapi_proto.fields.response_valid = ProtoField.string("openapi.response.valid", "Response Validated")
 openapi_proto.fields.response_error = ProtoField.string("openapi.response.error", "Response Error")
 openapi_proto.fields.response_warning = ProtoField.string("openapi.response.warning", "Response Warning")
 
@@ -224,6 +226,7 @@ function validate_request(request_info, request_spec, callbacks)
           table.insert(request_info["errors"], "Validation: " .. err)
         end
       end
+      request_info["valid"] = valid
       return valid
     else
       table.insert(request_info["warnings"], "No validator was applied to this request (probably because of missing or weird content type header)")
@@ -269,6 +272,7 @@ function validate_response(request_info, response_info, response_spec)
         table.insert(response_info["errors"], "Validation: " .. err)
       end
     end
+    response_info["valid"] = valid
     return valid
   else
     table.insert(response_info["warnings"], "No validator was applied to this response (probably because of missing or weird content type header)")
@@ -653,6 +657,13 @@ function openapi_proto.dissector(buf, pinfo, tree)
       if request_info["content_type"] ~= nil then
         request_subtree:add(openapi_proto.fields.request_content_type, request_info["content_type"]):set_generated()
       end
+      if request_info["valid"] ~= nil then
+        if request_info["valid"] then
+          request_subtree:add(openapi_proto.fields.request_valid, "Yes"):set_generated()
+        else
+          request_subtree:add(openapi_proto.fields.request_valid, "No"):set_generated()
+        end
+      end
 
       if response_info["headers_frame"] ~= nil then
         response_subtree:add(openapi_proto.fields.response_headers_frame, response_info["headers_frame"]):set_generated()
@@ -671,6 +682,13 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
       if response_info["content_type"] ~= nil then
         response_subtree:add(openapi_proto.fields.response_content_type, response_info["content_type"]):set_generated()
+      end
+      if response_info["valid"] ~= nil then
+        if response_info["valid"] then
+          response_subtree:add(openapi_proto.fields.response_valid, "Yes"):set_generated()
+        else
+          response_subtree:add(openapi_proto.fields.response_valid, "No"):set_generated()
+        end
       end
     else
       if http2_transfer["type"] == 1 then
