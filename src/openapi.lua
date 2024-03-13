@@ -54,6 +54,7 @@ openapi_proto.fields.warning = ProtoField.string("openapi.warning", "Warning")
 -- request headers
 openapi_proto.fields.request_headers_frame = ProtoField.framenum("openapi.request.headers_frame", "Request Headers Frame")
 openapi_proto.fields.request_method = ProtoField.string("openapi.request.method", "Request Method")
+openapi_proto.fields.request_content_type = ProtoField.string("openapi.request.content_type", "Request Content-Type")
 openapi_proto.fields.request_path = ProtoField.string("openapi.request.path", "Request Path")
 openapi_proto.fields.request_path_valid = ProtoField.bool("openapi.request.path_valid", "Request Path Valid")
 openapi_proto.fields.request_error = ProtoField.string("openapi.request.error", "Request Error")
@@ -69,6 +70,7 @@ openapi_proto.fields.request_data_frame = ProtoField.framenum("openapi.request.d
 -- response headers
 openapi_proto.fields.response_headers_frame = ProtoField.framenum("openapi.response.headers_frame", "Response Headers Frame")
 openapi_proto.fields.response_status = ProtoField.uint32("openapi.response.status", "Response Status")
+openapi_proto.fields.response_content_type = ProtoField.string("openapi.response.content_type", "Response Content-Type")
 openapi_proto.fields.response_location = ProtoField.string("openapi.response.location", "Response Redirect Location")
 openapi_proto.fields.response_error = ProtoField.string("openapi.response.error", "Response Error")
 openapi_proto.fields.response_warning = ProtoField.string("openapi.response.warning", "Response Warning")
@@ -184,6 +186,12 @@ function validate_request(request_info, request_spec, callbacks)
   local content_spec = openapi_get_value(request_spec, "content")
   if content_spec == nil then return end
 
+  if request_info["content_type"] == nil then
+    for spec_content_type, spec_table in pairs(content_spec) do
+      request_info["content_type"] = spec_content_type
+    end
+  end
+
   -- handling of mixed containers with json and other data
   local parts = parse_multipart_message(request_info["data"], request_info["content_type"], content_spec)
 
@@ -226,6 +234,12 @@ end
 function validate_response(request_info, response_info, response_spec)
   local content_spec = openapi_get_value(response_spec, "content")
   if content_spec == nil then return end
+
+  if response_info["content_type"] == nil then
+    for spec_content_type, spec_table in pairs(content_spec) do
+      response_info["content_type"] = spec_content_type
+    end
+  end
 
   if validators[response_info["content_type"]] == nil then
     if rex_pcre2.match(response_info["content_type"], "^application/.*json") then
@@ -636,6 +650,9 @@ function openapi_proto.dissector(buf, pinfo, tree)
       if request_info["data"] ~= nil then
         request_subtree:add(openapi_proto.fields.request_data, request_info["data"]):set_generated()
       end
+      if request_info["content_type"] ~= nil then
+        request_subtree:add(openapi_proto.fields.request_content_type, request_info["content_type"]):set_generated()
+      end
 
       if response_info["headers_frame"] ~= nil then
         response_subtree:add(openapi_proto.fields.response_headers_frame, response_info["headers_frame"]):set_generated()
@@ -651,6 +668,9 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
       if response_info["location"] ~= nil then
         response_subtree:add(openapi_proto.fields.response_location, response_info["location"]):set_generated()
+      end
+      if response_info["content_type"] ~= nil then
+        response_subtree:add(openapi_proto.fields.response_content_type, response_info["content_type"]):set_generated()
       end
     else
       if http2_transfer["type"] == 1 then
@@ -687,8 +707,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
         end
         local data = http2_transfer["data"]
 
-        if stream_info["content_type"] == nil or stream_info["content_type"] == "application/json" then
-          stream_info["content_type"] = "application/json" -- TODO: figure out how to better handle this fallback case
+        if stream_info["content_type"] == "application/json" or string.sub(data, 1, 1) == "{" then
           DissectorTable.get("http2.streamid"):add(http2_transfer["streamid"], json_dissector)
         end
         stream_info["data"] = data
