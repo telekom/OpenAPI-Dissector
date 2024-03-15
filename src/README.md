@@ -18,16 +18,16 @@ specification document, name of operation, related packets, etc. On errors it
 tries to highlight the packets in the packet list (this sometimes conflicts
 with user defined coloring rules).
 
-Additionally it marks unidentified JSON data for Wireshark, so the JSON
+Additionally, it marks unidentified JSON data for Wireshark, so the JSON
 dissector is loaded and contained data gets listed in the packet details.
 
-The script also automatically adds Wiresharks http2 dissector to data on TCP
+The script also automatically adds Wiresharks HTTP/2 dissector to data on TCP
 ports 7777 and 8080 (which are commonly used by 5G core implementations).
 
 # `json_validator.lua`
 
 This script contains all of the code for the actual validation and some helper
-funtions for resolving references inside of the previously generated openapi
+functions for resolving references inside of the previously generated openapi
 specification data.
 
 Its main entrypoint is the `validate_raw_json` method, which as arguments takes
