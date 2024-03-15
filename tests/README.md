@@ -11,7 +11,7 @@ Takes a few arguments:
 - http status code of response
 - request or response data
 - "request" or "response" (to identify what is being looked for)
-- optional: path to specific schema, seperated by semicolon, e.g. `TS29510_Nnrf_NFManagement.yaml;CreateSubscription;callbacks;onNFStatusEvent;{$request.body#/nfStatusNotificationUri};post`, usefull for manually specifying callback spec
+- optional: path to specific schema, separated by semicolon, e.g. `TS29510_Nnrf_NFManagement.yaml;CreateSubscription;callbacks;onNFStatusEvent;{$request.body#/nfStatusNotificationUri};post`, useful for manually specifying callback spec
 
 ## `apply-testcases.py`
 
