@@ -170,6 +170,14 @@ for document, spec in sorted(raw_specs.items()):
                 components[path] = component
 
     lua += f'openapi_documents["{lua_string_escape(document)}"] = {{}}\n'
+    if "info" in spec:
+        lua += obj_to_lua(f'openapi_documents["{lua_string_escape(document)}"]["info"]', spec["info"])
+    else:
+        lua += f'openapi_documents["{lua_string_escape(document)}"]["info"] = {{}}\n'
+    if "externalDocs" in spec:
+        lua += obj_to_lua(f'openapi_documents["{lua_string_escape(document)}"]["externaldocs"]', spec["externalDocs"])
+    else:
+        lua += f'openapi_documents["{lua_string_escape(document)}"]["externaldocs"] = {{}}\n'
 
     # Paths
     if 'paths' in spec:
@@ -233,6 +241,7 @@ for document, raw_spec in sorted(raw_specs.items()):
 # Prepare Lua return data structure (this can later be used when loading
 # the generated specs file in any other Lua script.
 lua += 'lib = {}\n'
+lua += 'lib["documents"] = openapi_documents\n'
 lua += 'lib["components"] = openapi_components\n'
 lua += 'lib["path_specs"] = path_specs\n'
 

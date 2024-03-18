@@ -46,6 +46,10 @@ openapi_proto.fields.substream_id = ProtoField.uint32("openapi.substream_id", "S
 openapi_proto.fields.response_found = ProtoField.bool("openapi.response.found", "Response Found")
 openapi_proto.fields.summary = ProtoField.string("openapi.summary", "Request Summary")
 openapi_proto.fields.spec = ProtoField.string("openapi.spec", "Specification File")
+openapi_proto.fields.spec_version = ProtoField.string("openapi.spec_version", "Specification Version")
+openapi_proto.fields.spec_description = ProtoField.string("openapi.spec_version", "Specification Description")
+openapi_proto.fields.docs_description = ProtoField.string("openapi.docs_description", "Documentation Description")
+openapi_proto.fields.docs_url = ProtoField.string("openapi.docs_url", "Documentation URL")
 openapi_proto.fields.description = ProtoField.string("openapi.description", "Request Description")
 openapi_proto.fields.operation = ProtoField.string("openapi.operation", "Operation")
 openapi_proto.fields.error = ProtoField.string("openapi.error", "Error")
@@ -556,6 +560,21 @@ function openapi_proto.dissector(buf, pinfo, tree)
       subtree:add(openapi_proto.fields.response_found, response_info["found"]):set_generated()
       if request_info["spec"] ~= nil then
         subtree:add(openapi_proto.fields.spec, request_info["spec"]):set_generated()
+        if openapi_spec["documents"][request_info["spec"]] ~= nil then
+          local document = openapi_spec["documents"][request_info["spec"]]
+          if document["info"]["version"] ~= nil then
+            subtree:add(openapi_proto.fields.spec_version, document["info"]["version"]):set_generated()
+          end
+          if document["info"]["description"] ~= nil then
+            subtree:add(openapi_proto.fields.spec_description, document["info"]["description"]):set_generated()
+          end
+          if document["externaldocs"]["description"] ~= nil then
+            subtree:add(openapi_proto.fields.docs_description, document["externaldocs"]["description"]):set_generated()
+          end
+          if document["externaldocs"]["url"] ~= nil then
+            subtree:add(openapi_proto.fields.docs_url, document["externaldocs"]["url"]):set_generated()
+          end
+        end
       end
       if request_info["summary"] ~= nil then
         subtree:add(openapi_proto.fields.summary, request_info["summary"]):set_generated()
