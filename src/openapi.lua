@@ -192,9 +192,15 @@ function validate_request(request_info, request_spec, callbacks)
   local content_spec = openapi_get_value(request_spec, "content")
   if content_spec == nil then return end
 
+  if content_spec[request_info["content_type"]] == nil then
+    request_info["content_type"] = nil
+  end
+
   if request_info["content_type"] == nil then
     for spec_content_type, spec_table in pairs(content_spec) do
       request_info["content_type"] = spec_content_type
+      table.insert(request_info["warnings"], "Using guessed content-type: " .. request_info["content_type"])
+      break
     end
   end
 
@@ -242,9 +248,15 @@ function validate_response(request_info, response_info, response_spec)
   local content_spec = openapi_get_value(response_spec, "content")
   if content_spec == nil then return end
 
+  if content_spec[response_info["content_type"]] == nil then
+    response_info["content_type"] = nil
+  end
+
   if response_info["content_type"] == nil then
     for spec_content_type, spec_table in pairs(content_spec) do
       response_info["content_type"] = spec_content_type
+      table.insert(response_info["warnings"], "Using guessed content-type: " .. response_info["content_type"])
+      break
     end
   end
 
