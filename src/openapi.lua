@@ -260,38 +260,46 @@ function validate_response(request_info, response_info, response_spec)
     end
   end
 
-  if validators[response_info["content_type"]] == nil then
-    if rex_pcre2.match(response_info["content_type"], "^application/.*json") then
-      validators[response_info["content_type"]] = validators["application/json"]
+  -- handling of mixed containers with json and other data
+  local parts = parse_multipart_message(response_info["data"], response_info["content_type"], content_spec)
+  
+  for i, part in pairs(parts) do
+    -- workaround for missing headers due to http2 compression
+    if part["headers"]["Content-Type"] == nil then
+      part["headers"]["Content-Type"] = "application/json"
     end
-  end
 
-  if validators[response_info["content_type"]] ~= nil and content_spec[response_info["content_type"]] ~= nil then
-    local content_spec = openapi_get_value(content_spec, response_info["content_type"])
-    local schema = openapi_get_value(content_spec, "schema")
-    local errors = {}
-    local extra_info = {}
-    extra_info["type"] = "response"
-    extra_info["callback_map"] = callback_map
-    extra_info["callback_spec"] = {}
-    local valid = validators[response_info["content_type"]](response_info["data"], schema, "root", errors, extra_info)
-    local out = ""
-    for i, v in pairs(errors) do
-      out = out .. v .. "\n"
-    end
-    if valid then
-      for _, err in pairs(errors) do
-        table.insert(response_info["warnings"], "Validation: " .. err)
+    if validators[part["headers"]["Content-Type"]] == nil then
+      if rex_pcre2.match(part["headers"]["Content-Type"], "^application/.*json") then
+        validators[part["headers"]["Content-Type"]] = validators["application/json"]
       end
+    end
+
+    if validators[part["headers"]["Content-Type"]] ~= nil and part["schema"] ~= nil then
+      local errors = {}
+      local extra_info = {}
+      extra_info["type"] = "response"
+      extra_info["callback_map"] = callback_map
+      extra_info["callback_spec"] = {}
+      local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info)
+      local out = ""
+      for i, v in pairs(errors) do
+        out = out .. v .. "\n"
+      end
+      if valid then
+        for _, err in pairs(errors) do
+          table.insert(response_info["warnings"], "Validation: " .. err)
+        end
+      else
+        for _, err in pairs(errors) do
+          table.insert(response_info["errors"], "Validation: " .. err)
+        end
+      end
+      response_info["valid"] = valid
+      return valid
     else
-      for _, err in pairs(errors) do
-        table.insert(response_info["errors"], "Validation: " .. err)
-      end
+      table.insert(response_info["warnings"], "No validator was applied to this response (probably because of missing or weird content type header)")
     end
-    response_info["valid"] = valid
-    return valid
-  else
-    table.insert(response_info["warnings"], "No validator was applied to this response (probably because of missing or weird content type header)")
   end
 end
 
