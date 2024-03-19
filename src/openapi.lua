@@ -788,4 +788,12 @@ local tcp_table = DissectorTable.get("tcp.port")
 tcp_table:add(7777, http2_dissector)
 tcp_table:add(8080, http2_dissector)
 
+set_plugin_info({
+  version = "0.0.1",
+  repository = "https://github.com/telekom/OpenAPI-Dissector",
+  spdx_id = "GPL-2.0",
+  description = "Experimental OpenAPI Dissector"
+})
+
+
 register_postdissector(openapi_proto)
