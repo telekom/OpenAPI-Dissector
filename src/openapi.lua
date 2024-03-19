@@ -192,7 +192,7 @@ function validate_request(request_info, request_spec, callbacks)
   local content_spec = openapi_get_value(request_spec, "content")
   if content_spec == nil then return end
 
-  if content_spec[request_info["content_type"]] == nil then
+  if request_info["content_type"] == "application/json" and content_spec[request_info["content_type"]] == nil then
     request_info["content_type"] = nil
   end
 
@@ -248,7 +248,7 @@ function validate_response(request_info, response_info, response_spec)
   local content_spec = openapi_get_value(response_spec, "content")
   if content_spec == nil then return end
 
-  if content_spec[response_info["content_type"]] == nil then
+  if response_info["content_type"] == "application/json" and content_spec[response_info["content_type"]] == nil then
     response_info["content_type"] = nil
   end
 
