@@ -7,6 +7,7 @@ import pickle
 import json
 import urllib.parse
 import pathlib
+import sys
 
 PRECOMPILE_REGEXES = True
 
@@ -30,12 +31,6 @@ def lua_string_escape(text):
         else:
             out += c
     return out
-
-# Load specification yaml files
-raw_specs = {}
-for path in sorted(pathlib.Path("5GC_APIs").glob("*.yaml")):
-    raw_yaml = open(path, "r", encoding="utf-8").read().replace("\t", "  ") # workaround for https://github.com/yaml/pyyaml/issues/594
-    raw_specs[os.path.basename(path)] = yaml.safe_load(raw_yaml)
 
 # Extend all references with their corresponding document name so they can still be identified when merged into a single file
 def expand_references(part, expand):
@@ -80,16 +75,6 @@ def obj_to_lua(path, obj, parent=None):
         print("what is this?", obj)
 
     return out
-
-components = {}
-paths = {}
-
-lua = 'json = require "json"\n'
-lua += 'if rex_pcre2 == nil then\n'
-lua += '  rex_pcre2 = require "rex_pcre2"\n'
-lua += 'end\n'
-lua += 'local openapi_components = {}\n'
-lua += 'local openapi_documents = {}\n'
 
 # Generate regular expression for path matching, including basic support for url parameters
 def generate_path_part_pattern(path, parameters):
@@ -139,13 +124,13 @@ def generate_path_part_pattern(path, parameters):
     return path_pattern
 
 # Generate path data structure containing generated regular expressions
-def generate_path_pattern(root, path, parameters):
+def generate_path_pattern(specname, root, path, parameters):
     path = root + path
 
     if not path.startswith("/"):
         raise Exception("weird path, doesn't start at root: %s" % path)
 
-    luapath = 'path_patterns'
+    luapath = f'lib["{specname}"]["path_patterns"]'
     tmplua = ''
     for path_part in path.split("/")[1:]:
         path_part_pattern = generate_path_part_pattern(path_part, parameters)
@@ -157,114 +142,134 @@ def generate_path_pattern(root, path, parameters):
 
     return (luapath, tmplua)
 
-# OpenAPI specifications contain references to components and paths.
-# This codes prepares a corresponding lookup dictionary so that references
-# can be resolved.
-for document, spec in sorted(raw_specs.items()):
-    # Components
-    if 'components' in spec:
-        for section, items in spec["components"].items():
-            for key, component in items.items():
-                path = document + "#/components/" + section + "/" + key
-                expand_references(component, document)
-                components[path] = component
-
-    lua += f'openapi_documents["{lua_string_escape(document)}"] = {{}}\n'
-    if "info" in spec:
-        lua += obj_to_lua(f'openapi_documents["{lua_string_escape(document)}"]["info"]', spec["info"])
-    else:
-        lua += f'openapi_documents["{lua_string_escape(document)}"]["info"] = {{}}\n'
-    if "externalDocs" in spec:
-        lua += obj_to_lua(f'openapi_documents["{lua_string_escape(document)}"]["externaldocs"]', spec["externalDocs"])
-    else:
-        lua += f'openapi_documents["{lua_string_escape(document)}"]["externaldocs"] = {{}}\n'
-
-    # Paths
-    if 'paths' in spec:
-        for path_urlpart, pathspec in spec["paths"].items():
-            pathname = f'{document}#/paths/{urllib.parse.quote(path_urlpart).replace("/", "~1")}'
-            expand_references(pathspec, document)
-            paths[pathname] = pathspec
-
-# Write all found components into the generated Lua data structure
-for component_path, component in sorted(components.items()):
-    lua += obj_to_lua(f'openapi_components["{component_path}"]', component)
-
-# Prepare some Lua variables
-lua += "path_patterns = {}\n" # will contain a nested dictionary of regular expressions for matching paths
-lua += "path_specs = {}\n" # will contain an indexed array of path specifications
-
-# This function combines all of the previously loaded and generated data to walk
-# through all paths of all documents, using previously defined functions to generate
-# path matching dictionaries and convert their corresponding schema into a Lua
-# data structure.
-path_spec_index = 1 # index to path_specs array (remember: lua starts counting at 1)
-for document, raw_spec in sorted(raw_specs.items()):
-    servers = raw_spec["servers"] if "servers" in raw_spec else [{"url": "{apiRoot}"}]
-    for server in servers:
-        for path_urlpart, pathspec in raw_spec["paths"].items():
-            while '$ref' in pathspec:
-                pathspec = paths[pathspec['$ref']]
-
-            pathspec_parameters = {}
-            if "parameters" in pathspec:
-                for param in pathspec["parameters"]:
-                    pathspec_parameters[param["name"]] = param
-
-            for method in ["get", "put", "post", "delete", "options", "head", "patch", "trace"]:
-                if method not in pathspec: continue
-                spec = pathspec[method]
-
-                parameters = pathspec_parameters.copy()
-                if "parameters" in spec:
-                    for param in spec["parameters"]:
-                        while '$ref' in param:
-                            param = components[param['$ref']]
-                        parameters[param["name"]] = param
-
-                try:
-                    luapath, tmplua = generate_path_pattern(server["url"].replace("{apiRoot}", "").replace("{root}", ""), path_urlpart, parameters)
-                    lua += tmplua
-
-                    lua += f'if {luapath}["{method}"] == nil then\n'
-                    lua += f'    {luapath}["{method}"] = {{}}\n'
-                    lua += f'end\n'
-                    lua += f'table.insert({luapath}["{method}"], {path_spec_index})\n'
-
-                    pathspec[method]["document"] = document
-                    lua += obj_to_lua(f'path_specs[{path_spec_index}]', pathspec[method])
-
-                    path_spec_index += 1
-                except:
-                    print("ERR: Can't generate path pattern for %s%s (unspecified url parameter?)" % (server["url"].replace("{apiRoot}", "").replace("{root}", ""), path_urlpart))
-
-# Prepare Lua return data structure (this can later be used when loading
-# the generated specs file in any other Lua script.
+lua = 'json = require "json"\n'
+lua += 'if rex_pcre2 == nil then\n'
+lua += '  rex_pcre2 = require "rex_pcre2"\n'
+lua += 'end\n'
 lua += 'lib = {}\n'
-lua += 'lib["documents"] = openapi_documents\n'
-lua += 'lib["components"] = openapi_components\n'
-lua += 'lib["path_specs"] = path_specs\n'
 
-# rex_pcre2 (the Lua regex library that is also provided by Wireshark) allows
-# to compile regular expressions when they are being created so that they don't
-# need to be re-parsed every time they are being matched. This code compiles
-# all regular expressions inside of the path matching dictionary when the script
-# gets loaded.
-if PRECOMPILE_REGEXES:
-    lua += 'function compile_patterns(source)\n'
-    lua += '  local compiled = {}\n'
-    lua += '  for key, value in pairs(source) do\n'
-    lua += '    if value[1] == nil or type(value[1]) == "table" then\n'
-    lua += '      compiled[rex_pcre2.new(key)] = compile_patterns(value)\n'
-    lua += '    else\n'
-    lua += '      compiled[key] = value\n'
-    lua += '    end\n'
-    lua += '  end\n'
-    lua += '  return compiled\n'
-    lua += 'end\n'
-    lua += 'lib["path_patterns"] = compile_patterns(path_patterns)\n'
-else:
-    lua += 'lib["path_patterns"] = path_patterns\n'
+lua += 'function compile_patterns(source)\n'
+lua += '  local compiled = {}\n'
+lua += '  for key, value in pairs(source) do\n'
+lua += '    if value[1] == nil or type(value[1]) == "table" then\n'
+lua += '      compiled[rex_pcre2.new(key)] = compile_patterns(value)\n'
+lua += '    else\n'
+lua += '      compiled[key] = value\n'
+lua += '    end\n'
+lua += '  end\n'
+lua += '  return compiled\n'
+lua += 'end\n'
+
+for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
+    if not specdir.is_dir():
+        print(f"Skipping {specdir} (not a directory)")
+        continue
+
+    specname = specdir.name
+    lua += f'lib["{specname}"] = {{}}\n'
+    lua += f'lib["{specname}"]["documents"] = {{}}\n'
+    lua += f'lib["{specname}"]["components"] = {{}}\n'
+    lua += f'lib["{specname}"]["path_specs"] = {{}}\n'
+    lua += f'lib["{specname}"]["path_patterns"] = {{}}\n'
+
+    # Load specification yaml files
+    raw_specs = {}
+    for path in sorted(pathlib.Path(specdir).glob("*.yaml")):
+        print(f"Loading {path}")
+        raw_yaml = open(path, "r", encoding="utf-8").read().replace("\t", "  ") # workaround for https://github.com/yaml/pyyaml/issues/594
+        raw_specs[os.path.basename(path)] = yaml.safe_load(raw_yaml)
+
+    components = {}
+    paths = {}
+
+    # OpenAPI specifications contain references to components and paths.
+    # This codes prepares a corresponding lookup dictionary so that references
+    # can be resolved.
+    for document, spec in sorted(raw_specs.items()):
+        print(f"Processing {document} components and metadata...")
+        # Components
+        if 'components' in spec:
+            for section, items in spec["components"].items():
+                for key, component in items.items():
+                    path = document + "#/components/" + section + "/" + key
+                    expand_references(component, document)
+                    components[path] = component
+
+        # Replace absolute Component paths in current document with relative paths
+        if 'paths' in spec:
+            for path_urlpart, pathspec in spec["paths"].items():
+                pathname = f'{document}#/paths/{urllib.parse.quote(path_urlpart).replace("/", "~1")}'
+                expand_references(pathspec, document)
+                paths[pathname] = pathspec
+
+        # Metadata
+        lua += f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"] = {{}}\n'
+        if "info" in spec:
+            lua += obj_to_lua(f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["info"]', spec["info"])
+        else:
+            lua += f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["info"] = {{}}\n'
+        if "externalDocs" in spec:
+            lua += obj_to_lua(f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["externaldocs"]', spec["externalDocs"])
+        else:
+            lua += f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["externaldocs"] = {{}}\n'
+
+    # Write all found components into the generated Lua data structure
+    for component_path, component in sorted(components.items()):
+        lua += obj_to_lua(f'lib["{specname}"]["components"]["{component_path}"]', component)
+
+    # This function combines all of the previously loaded and generated data to walk
+    # through all paths of all documents, using previously defined functions to generate
+    # path matching dictionaries and convert their corresponding schema into a Lua
+    # data structure.
+    path_spec_index = 1 # index to path_specs array (remember: lua starts counting at 1)
+    for document, raw_spec in sorted(raw_specs.items()):
+        print(f"Processing {document} paths...")
+        servers = raw_spec["servers"] if "servers" in raw_spec else [{"url": "{apiRoot}"}]
+        for server in servers:
+            if 'paths' not in raw_spec: continue
+            for path_urlpart, pathspec in raw_spec["paths"].items():
+                while '$ref' in pathspec:
+                    pathspec = paths[pathspec['$ref']]
+
+                pathspec_parameters = {}
+                if "parameters" in pathspec:
+                    for param in pathspec["parameters"]:
+                        pathspec_parameters[param["name"]] = param
+
+                for method in ["get", "put", "post", "delete", "options", "head", "patch", "trace"]:
+                    if method not in pathspec: continue
+                    spec = pathspec[method]
+
+                    parameters = pathspec_parameters.copy()
+                    if "parameters" in spec:
+                        for param in spec["parameters"]:
+                            while '$ref' in param:
+                                param = components[param['$ref']]
+                            parameters[param["name"]] = param
+
+                    try:
+                        luapath, tmplua = generate_path_pattern(specname, server["url"].replace("{apiRoot}", "").replace("{root}", ""), path_urlpart, parameters)
+                        lua += tmplua
+
+                        lua += f'if {luapath}["{method}"] == nil then\n'
+                        lua += f'    {luapath}["{method}"] = {{}}\n'
+                        lua += f'end\n'
+                        lua += f'table.insert({luapath}["{method}"], {path_spec_index})\n'
+
+                        pathspec[method]["document"] = document
+                        lua += obj_to_lua(f'lib["{specname}"]["path_specs"][{path_spec_index}]', pathspec[method])
+
+                        path_spec_index += 1
+                    except:
+                        print("ERR: Can't generate path pattern for %s%s (unspecified url parameter?)" % (server["url"].replace("{apiRoot}", "").replace("{root}", ""), path_urlpart))
+
+    # rex_pcre2 (the Lua regex library that is also provided by Wireshark) allows
+    # to compile regular expressions when they are being created so that they don't
+    # need to be re-parsed every time they are being matched. This code compiles
+    # all regular expressions inside of the path matching dictionary when the script
+    # gets loaded.
+    if PRECOMPILE_REGEXES:
+        lua += f'lib["{specname}"]["path_patterns"] = compile_patterns(lib["{specname}"]["path_patterns"])\n'
 
 lua += 'return lib\n'
 

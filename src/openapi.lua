@@ -1,6 +1,12 @@
 local openapi_proto = Proto("openapi", "OpenAPI")
 
-local openapi_spec = require "openapi_spec"
+local openapi_specs = require "openapi_spec"
+
+openapi_spec = {}
+for _, oapi_spec in pairs(openapi_specs) do
+  openapi_spec = oapi_spec
+end
+
 local json = require "json"
 local json_validator = require "json_validator"
 
@@ -225,7 +231,7 @@ function validate_request(request_info, request_spec, callbacks)
       extra_info["type"] = "request"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = callback_spec
-      local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info)
+      local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
       local out = ""
       if valid then
         for _, err in pairs(errors) do
@@ -281,7 +287,7 @@ function validate_response(request_info, response_info, response_spec)
       extra_info["type"] = "response"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = {}
-      local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info)
+      local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
       local out = ""
       for i, v in pairs(errors) do
         out = out .. v .. "\n"
@@ -795,5 +801,16 @@ set_plugin_info({
   description = "Experimental OpenAPI Dissector"
 })
 
+for oapi_name, oapi_spec in pairs(openapi_specs) do
+  local function use_spec()
+    print("Using OpenAPI specification " .. oapi_name)
+    openapi_spec = oapi_spec
+    set_filter(get_filter())
+    apply_filter()
+    reload_packets()
+  end
+  register_menu("Use OpenAPI specification: " .. oapi_name, use_spec, MENU_TOOLS_UNSORTED)
+end
 
 register_postdissector(openapi_proto)
+

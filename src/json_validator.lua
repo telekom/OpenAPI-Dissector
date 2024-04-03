@@ -1,4 +1,5 @@
-local openapi_spec = require "openapi_spec"
+openapi_spec = {}
+
 local json = require "json"
 
 local DEBUG = false
@@ -511,7 +512,8 @@ function validate_json(content, schema, path, errors, extra_infos)
 end
 
 -- main entrypoint
-function validate_raw_json(raw_json, schema, path, errors, extra_infos)
+function validate_raw_json(raw_json, schema, path, errors, extra_infos, spec)
+  openapi_spec = spec
   local status, content = pcall(json.decode, raw_json)
   if status and content ~= nil then
     debug_print(content, schema, path, errors)

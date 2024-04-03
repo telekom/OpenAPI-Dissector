@@ -29,17 +29,18 @@ but it could potentially be adapted for other APIs as well.
 
 ## Installation
 
-### Generate spec file
+### Generate specs file
 
-First step is to generate a spec file (i.e. `openapi_spec.lua`) derived from a specific 3GPP Release. This can be done using a few commands to clone or copy from 3GPP git (https://forge.3gpp.org/rep/all/5G_APIs) the related yaml files for a specific 3GPP-Release (e.g. 3GPP Rel-17) into the `5GC_APIs` sub-directory:
+First step is to generate a specs file (i.e. `openapi_spec.lua`) derived from 3GPP Releases. This can be done using a few commands to clone or copy from 3GPP git (https://forge.3gpp.org/rep/all/5G_APIs) the related yaml files for specific 3GPP-Releases (e.g. 3GPP Rel-17) into the corresponding `specs` sub-directories:
 
 ```bash
 cd generator/
-git clone -b REL-17 https://forge.3gpp.org/rep/all/5G_APIs 5GC_APIs
-python3 generate.py
+git clone -b REL-17 https://forge.3gpp.org/rep/all/5G_APIs specs/17.x
+git clone -b REL-18 https://forge.3gpp.org/rep/all/5G_APIs specs/18.x
+python3 generate.py specs
 ```
 
-`gererate.py` processes the 3GPP-Release specific OpenAPI yaml files which have to be copied into the `5GC_APIs` sub-directory and as a result the `openapi_spec.lua` is created in the generator directory.
+`gererate.py` processes each of the 3GPP-Releases specific OpenAPI yaml files (from subdirectories named by release version) and as a result the `openapi_spec.lua` is created in the generator directory.
 
 ### Download json library
 
@@ -94,7 +95,7 @@ This can be worked around by simply reloading the Lua scripts (Ctrl+Shift+L).
 - Improve handling of missing HTTP/2 header fields (due to compression in HTTP/2 combined with eventually missing packets in pcap)
 - Implementing HTTP/1.x support
 - Easy filtering on data inside of OpenAPI packets (currently only possible using a regex workaround)
-- Multi-Version support (5G core networks sometimes use a mix of different API releases, we may need support for this)
+- Better Multi-Version support (currently a single selectable version is used over all NFs and connections, no support for mixed versions)
 - Manual selection of correct operation on potential mismatch
 - Implement some logic to match specification documents to the correct services (should improve both speed and overall detection of used operations)
 
