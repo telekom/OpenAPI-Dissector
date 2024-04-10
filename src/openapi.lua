@@ -809,7 +809,7 @@ for oapi_name, oapi_spec in pairs(openapi_specs) do
     apply_filter()
     reload_packets()
   end
-  register_menu("Use OpenAPI specification: " .. oapi_name, use_spec, MENU_TOOLS_UNSORTED)
+  register_menu("OpenAPI/Use specification: " .. oapi_name, use_spec, MENU_TOOLS_UNSORTED)
 end
 
 register_postdissector(openapi_proto)
