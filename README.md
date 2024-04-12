@@ -101,6 +101,19 @@ This can be worked around by simply reloading the Lua scripts (Ctrl+Shift+L).
 
 At least some of those improvements may need implementation of GUI elements or even a C-extension for wireshark.
 
+## Troubleshooting
+
+### Missing `rex_pcre2` library
+
+It seems that the Lua interpreter bundled with Wireshark releases included in
+at least some Ubuntu versions doesn't contain the `rex_pcre2` library.
+
+To solve this issue you can manually install the library:
+
+```
+apt install lua-rex-pcre2
+```
+
 ## License
 
 Copyright (c) 2023 Deutsche Telekom AG.
