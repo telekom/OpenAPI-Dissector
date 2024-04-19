@@ -1,15 +1,12 @@
-local openapi_proto = Proto("openapi", "OpenAPI")
-
-local openapi_specs = require "openapi_spec"
-
-openapi_spec = {}
-for _, oapi_spec in pairs(openapi_specs) do
-  openapi_spec = oapi_spec
-end
-
 local json = require "json"
 local json_validator = require "json_validator"
 
+local openapi_specs_lib = require "openapi_spec"
+
+
+local DEBUG = false
+
+local openapi_proto = Proto("openapi", "OpenAPI")
 local json_dissector = Dissector.get("json")
 
 local stream_map = {}
@@ -30,8 +27,6 @@ local f_http2_flags_end_stream = Field.new("http2.flags.end_stream")
 local f_http2_type = Field.new("http2.type")
 local f_http2_streamid = Field.new("http2.streamid")
 local f_tcp_stream = Field.new("tcp.stream")
-
-local DEBUG = false
 
 function debug_print(...)
   if DEBUG then
@@ -91,7 +86,14 @@ openapi_proto.fields.response_warning = ProtoField.string("openapi.response.warn
 openapi_proto.fields.response_data = ProtoField.string("openapi.response.data", "Response Data")
 openapi_proto.fields.response_data_frame = ProtoField.framenum("openapi.response.data_frame", "Response Data Frame")
 
+openapi_spec = {}
+openapi_proto_version = nil
 function openapi_proto.init()
+  if openapi_proto_version == nil then
+    openapi_proto_version = openapi_proto.prefs.version
+  end
+  openapi_spec = openapi_specs_lib["specs"][openapi_specs_lib["spec_names"][openapi_proto_version]]
+
   stream_map = {}
   resp_map = {}
   if gui_enabled() then
@@ -801,15 +803,23 @@ set_plugin_info({
   description = "Experimental OpenAPI Dissector"
 })
 
-for oapi_name, oapi_spec in pairs(openapi_specs) do
+local openapi_specs_enum = {}
+for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
+  table.insert(openapi_specs_enum, {oapi_spec_key, oapi_spec_name, oapi_spec_key})
+end
+
+openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation", openapi_specs_enum, false)
+
+for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   local function use_spec()
-    print("Using OpenAPI specification " .. oapi_name)
-    openapi_spec = oapi_spec
+    print("Using OpenAPI specification " .. oapi_spec_name)
+    -- openapi_spec = openapi_specs_lib["specs"][oapi_spec_name]
+    openapi_proto_version = oapi_spec_key
     set_filter(get_filter())
     apply_filter()
     reload_packets()
   end
-  register_menu("OpenAPI/Use specification: " .. oapi_name, use_spec, MENU_TOOLS_UNSORTED)
+  register_menu("OpenAPI/Use specification: " .. oapi_spec_name, use_spec, MENU_TOOLS_UNSORTED)
 end
 
 register_postdissector(openapi_proto)
