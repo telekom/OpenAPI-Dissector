@@ -808,7 +808,7 @@ for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   table.insert(openapi_specs_enum, {oapi_spec_key, oapi_spec_name, oapi_spec_key})
 end
 
-openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation", openapi_specs_enum, false)
+openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation (requires Wireshark restart or plugin reload)", openapi_specs_enum, false)
 
 for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   local function use_spec()
