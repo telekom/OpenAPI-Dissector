@@ -96,7 +96,7 @@ function openapi_proto.init()
 
   stream_map = {}
   resp_map = {}
-  if gui_enabled() then
+  if gui_enabled() and openapi_proto.prefs.coloring then
     set_color_filter_slot(1, "openapi.error || openapi.request.error || openapi.response.error")
     set_color_filter_slot(8, "openapi.warning || openapi.request.warning || openapi.response.warning")
   end
@@ -790,27 +790,9 @@ function openapi_proto.dissector(buf, pinfo, tree)
   end
 end
 
-
-local http2_dissector = Dissector.get("http2")
-local tcp_table = DissectorTable.get("tcp.port")
-tcp_table:add(7777, http2_dissector)
-tcp_table:add(8080, http2_dissector)
-
-set_plugin_info({
-  version = "0.0.1",
-  repository = "https://github.com/telekom/OpenAPI-Dissector",
-  spdx_id = "GPL-2.0",
-  description = "Experimental OpenAPI Dissector"
-})
-
 local openapi_specs_enum = {}
 for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   table.insert(openapi_specs_enum, {oapi_spec_key, oapi_spec_name, oapi_spec_key})
-end
-
-openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation (requires Wireshark restart or plugin reload)", openapi_specs_enum, false)
-
-for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   local function use_spec()
     print("Using OpenAPI specification " .. oapi_spec_name)
     -- openapi_spec = openapi_specs_lib["specs"][oapi_spec_name]
@@ -821,6 +803,21 @@ for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   end
   register_menu("OpenAPI/Use specification: " .. oapi_spec_name, use_spec, MENU_TOOLS_UNSORTED)
 end
+
+set_plugin_info({
+  version = "0.0.1",
+  repository = "https://github.com/telekom/OpenAPI-Dissector",
+  spdx_id = "GPL-2.0",
+  description = "Experimental OpenAPI Dissector"
+})
+
+openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation (requires Wireshark restart or plugin reload)", openapi_specs_enum, false)
+openapi_proto.prefs.coloring = Pref.bool("OpenAPI coloring", true, "Enable default coloring rules")
+openapi_proto.prefs.http2_ports = Pref.range("OpenAPI http2 ports", "7777,8080", "List of ports to automatically apply HTTP2 dissector", 65535)
+
+local http2_dissector = Dissector.get("http2")
+local tcp_table = DissectorTable.get("tcp.port")
+tcp_table:add(openapi_proto.prefs.http2_ports, http2_dissector)
 
 register_postdissector(openapi_proto)
 
