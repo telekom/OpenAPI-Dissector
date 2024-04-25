@@ -6,7 +6,8 @@ local DEBUG = false
 
 function debug_print(...)
   if DEBUG then
-    print(...)
+    io.stderr:write(...)
+    io.stderr:write("\n")
   end
 end
 
@@ -389,23 +390,28 @@ function validate_json(content, schema, path, errors, extra_infos)
   local schema_enum = openapi_get_value(schema, "enum")
 
   -- TODO: handle more "not" parameters
-  -- local _not = openapi_get_value(schema, "not")
-  -- if _not ~= nil then
-  --   print("NOT " .. path)
-  -- end
+  local _not = openapi_get_value(schema, "not")
+  if _not ~= nil then
+    debug_print("Unhandled 'not': " .. path)
+  end
 
   local validator_found = false
 
-  debug_print("<VALIDATE", schema_type, ">")
+  debug_print(string.format("<VALIDATE %s>", schema_type))
   for k, v in pairs(schema) do
-    debug_print("schema[" .. k .. "]", v)
+    debug_print(string.format("schema[%s] = %s", k, v))
+  end
+  if schema_type == nil then
+    debug_print(string.format("schema[oneOf] = %s", schema_oneof))
+    debug_print(string.format("schema[anyOf] = %s", schema_anyof))
+    debug_print(string.format("schema[allOf] = %s", schema_allof))
   end
   if type(content) == "table" then
     for k, v in pairs(content) do
-      debug_print("content[" .. k .. "]", v)
+      debug_print(string.format("content[k] = %s", k, v))
     end
   else
-    debug_print("content", content)
+    debug_print(string.format("content = %s", content))
   end
   debug_print("<START>")
 
@@ -495,13 +501,13 @@ function validate_json(content, schema, path, errors, extra_infos)
   if not validator_found then
     debug_print("Unknown schema type at " .. path)
     for k, v in pairs(schema) do
-      debug_print("schema[" .. k .. "]", v)
+      debug_print(string.format("%s = %s", "schema[" .. k .. "]", v))
     end
     if schema_type == nil then
-      print("No schema type found at " .. path)
+      debug_print("No schema type found at " .. path)
       table.insert(errors, "No schema type found at " .. path)
     else
-      print("Unknown schema type '" .. schema_type .. "' at " .. path)
+      debug_print("Unknown schema type '" .. schema_type .. "' at " .. path)
       table.insert(errors, "Unknown schema type '" .. schema_type .. "' at " .. path)
       return false
     end

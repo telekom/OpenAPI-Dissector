@@ -37,7 +37,8 @@ local f_tcp_stream = Field.new("tcp.stream")
 
 function debug_print(...)
   if DEBUG then
-    print(...)
+    io.stderr:write(...)
+    io.stderr:write("\n")
   end
 end
 
@@ -153,6 +154,7 @@ function generate_fields(content, path, extra_infos, key)
       end
     end
   else
+    debug_print(string.format("%s = %s", path .. "[" .. key .. "]", content))
     extra_infos["fields"][path .. "[" .. key .. "]"] = content
     extra_infos["fields"]["all[" .. key .. "]"] = content
   end
@@ -408,7 +410,7 @@ function find_callback(_host, _path, _method)
   end
 end
 
-function find_path_specs(_method, _path, _search, _host)
+function find_path_specs(_method, _path, _search, _host, _origpath)
     local search
     local method
     if _search == nil then
@@ -423,10 +425,10 @@ function find_path_specs(_method, _path, _search, _host)
 
     if path == nil or string.len(path) == 0 then
       if search[method] ~= nil then
-        debug_print("returning method " .. method .. " foo")
+        debug_print("returning method " .. method)
         return search[method]
       else
-        debug_print("returning method foo")
+        debug_print("method " .. _method .. " not found for " .. _origpath)
         return {}
       end
     else
@@ -436,7 +438,7 @@ function find_path_specs(_method, _path, _search, _host)
       debug_print("path part: ".. path_part)
       for pattern, subtable in pairs(search) do
         if rex_pcre2.match(path_part, pattern) then
-          for _, entry in pairs(find_path_specs(method, string.sub(path, string.len(path_part)+1), subtable, nil)) do
+          for _, entry in pairs(find_path_specs(method, string.sub(path, string.len(path_part)+1), subtable, nil, _origpath)) do
             if type(entry) == "number" then
               table.insert(results, openapi_spec["path_specs"][entry])
             else
@@ -698,7 +700,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
 
           table.insert(path_specs, callback["path_spec"])
         else
-          path_specs = find_path_specs(request_info["method"], request_info["path"], nil, request_info["host"])
+          path_specs = find_path_specs(request_info["method"], request_info["path"], nil, request_info["host"], request_info["path"])
         end
 
         request_info["path_valid"] = false
@@ -878,8 +880,7 @@ local openapi_specs_enum = {}
 for oapi_spec_key, oapi_spec_name in pairs(openapi_specs_lib["spec_names"]) do
   table.insert(openapi_specs_enum, {oapi_spec_key, oapi_spec_name, oapi_spec_key})
   local function use_spec()
-    print("Using OpenAPI specification " .. oapi_spec_name)
-    -- openapi_spec = openapi_specs_lib["specs"][oapi_spec_name]
+    debug_print("Using OpenAPI specification " .. oapi_spec_name)
     openapi_proto_version = oapi_spec_key
     set_filter(get_filter())
     apply_filter()
