@@ -130,7 +130,7 @@ def generate_path_pattern(specname, root, path, parameters):
     if not path.startswith("/"):
         raise Exception("weird path, doesn't start at root: %s" % path)
 
-    luapath = f'lib["{specname}"]["path_patterns"]'
+    luapath = f'lib["specs"]["{specname}"]["path_patterns"]'
     tmplua = ''
     for path_part in path.split("/")[1:]:
         path_part_pattern = generate_path_part_pattern(path_part, parameters)
@@ -147,6 +147,8 @@ lua += 'if rex_pcre2 == nil then\n'
 lua += '  rex_pcre2 = require "rex_pcre2"\n'
 lua += 'end\n'
 lua += 'lib = {}\n'
+lua += 'lib["specs"] = {}\n'
+lua += 'lib["spec_names"] = {}\n'
 
 lua += 'function compile_patterns(source)\n'
 lua += '  local compiled = {}\n'
@@ -160,17 +162,20 @@ lua += '  end\n'
 lua += '  return compiled\n'
 lua += 'end\n'
 
+
+
 for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
     if not specdir.is_dir():
         print(f"Skipping {specdir} (not a directory)")
         continue
 
     specname = specdir.name
-    lua += f'lib["{specname}"] = {{}}\n'
-    lua += f'lib["{specname}"]["documents"] = {{}}\n'
-    lua += f'lib["{specname}"]["components"] = {{}}\n'
-    lua += f'lib["{specname}"]["path_specs"] = {{}}\n'
-    lua += f'lib["{specname}"]["path_patterns"] = {{}}\n'
+    lua += f'table.insert(lib["spec_names"], "{specname}")\n'
+    lua += f'lib["specs"]["{specname}"] = {{}}\n'
+    lua += f'lib["specs"]["{specname}"]["documents"] = {{}}\n'
+    lua += f'lib["specs"]["{specname}"]["components"] = {{}}\n'
+    lua += f'lib["specs"]["{specname}"]["path_specs"] = {{}}\n'
+    lua += f'lib["specs"]["{specname}"]["path_patterns"] = {{}}\n'
 
     # Load specification yaml files
     raw_specs = {}
@@ -203,19 +208,19 @@ for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
                 paths[pathname] = pathspec
 
         # Metadata
-        lua += f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"] = {{}}\n'
+        lua += f'lib["specs"]["{specname}"]["documents"]["{lua_string_escape(document)}"] = {{}}\n'
         if "info" in spec:
-            lua += obj_to_lua(f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["info"]', spec["info"])
+            lua += obj_to_lua(f'lib["specs"]["{specname}"]["documents"]["{lua_string_escape(document)}"]["info"]', spec["info"])
         else:
-            lua += f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["info"] = {{}}\n'
+            lua += f'lib["specs"]["{specname}"]["documents"]["{lua_string_escape(document)}"]["info"] = {{}}\n'
         if "externalDocs" in spec:
-            lua += obj_to_lua(f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["externaldocs"]', spec["externalDocs"])
+            lua += obj_to_lua(f'lib["specs"]["{specname}"]["documents"]["{lua_string_escape(document)}"]["externaldocs"]', spec["externalDocs"])
         else:
-            lua += f'lib["{specname}"]["documents"]["{lua_string_escape(document)}"]["externaldocs"] = {{}}\n'
+            lua += f'lib["specs"]["{specname}"]["documents"]["{lua_string_escape(document)}"]["externaldocs"] = {{}}\n'
 
     # Write all found components into the generated Lua data structure
     for component_path, component in sorted(components.items()):
-        lua += obj_to_lua(f'lib["{specname}"]["components"]["{component_path}"]', component)
+        lua += obj_to_lua(f'lib["specs"]["{specname}"]["components"]["{component_path}"]', component)
 
     # This function combines all of the previously loaded and generated data to walk
     # through all paths of all documents, using previously defined functions to generate
@@ -257,7 +262,7 @@ for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
                         lua += f'table.insert({luapath}["{method}"], {path_spec_index})\n'
 
                         pathspec[method]["document"] = document
-                        lua += obj_to_lua(f'lib["{specname}"]["path_specs"][{path_spec_index}]', pathspec[method])
+                        lua += obj_to_lua(f'lib["specs"]["{specname}"]["path_specs"][{path_spec_index}]', pathspec[method])
 
                         path_spec_index += 1
                     except:
@@ -269,7 +274,7 @@ for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
     # all regular expressions inside of the path matching dictionary when the script
     # gets loaded.
     if PRECOMPILE_REGEXES:
-        lua += f'lib["{specname}"]["path_patterns"] = compile_patterns(lib["{specname}"]["path_patterns"])\n'
+        lua += f'lib["specs"]["{specname}"]["path_patterns"] = compile_patterns(lib["specs"]["{specname}"]["path_patterns"])\n'
 
 lua += 'return lib\n'
 
