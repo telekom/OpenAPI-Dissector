@@ -126,8 +126,8 @@ function openapi_proto.init()
   stream_map = {}
   resp_map = {}
   if gui_enabled() and openapi_proto.prefs.coloring then
-    set_color_filter_slot(1, "openapi.error || openapi.request.error || openapi.response.error")
-    set_color_filter_slot(8, "openapi.warning || openapi.request.warning || openapi.response.warning")
+    set_color_filter_slot(1, "openapi.operation.error || openapi.request.error || openapi.response.error")
+    set_color_filter_slot(8, "openapi.operation.warning || openapi.request.warning || openapi.response.warning")
   end
 end
 
