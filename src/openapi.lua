@@ -559,7 +559,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
 
       local toptree
       toptree = tree:add(openapi_proto, short_description)
-      local subtree = toptree:add(openapi_proto_operation, "Operation")
+      local operation_subtree = toptree:add(openapi_proto_operation, "Operation")
       local request_subtree = toptree:add(openapi_proto_request, "Request")
       local response_subtree = toptree:add(openapi_proto_response, "Response")
 
@@ -587,34 +587,34 @@ function openapi_proto.dissector(buf, pinfo, tree)
         end
       end
 
-      subtree:add(openapi_proto_operation.fields.stream_id, streamid):set_generated()
-      subtree:add(openapi_proto_operation.fields.response_found, response_info["found"]):set_generated()
+      operation_subtree:add(openapi_proto_operation.fields.stream_id, streamid):set_generated()
+      operation_subtree:add(openapi_proto_operation.fields.response_found, response_info["found"]):set_generated()
       if request_info["spec"] ~= nil then
-        subtree:add(openapi_proto_operation.fields.spec, request_info["spec"]):set_generated()
+        operation_subtree:add(openapi_proto_operation.fields.spec, request_info["spec"]):set_generated()
         if openapi_spec["documents"][request_info["spec"]] ~= nil then
           local document = openapi_spec["documents"][request_info["spec"]]
           if document["info"]["version"] ~= nil then
-            subtree:add(openapi_proto_operation.fields.spec_version, document["info"]["version"]):set_generated()
+            operation_subtree:add(openapi_proto_operation.fields.spec_version, document["info"]["version"]):set_generated()
           end
           if document["info"]["description"] ~= nil then
-            subtree:add(openapi_proto_operation.fields.spec_description, document["info"]["description"]):set_generated()
+            operation_subtree:add(openapi_proto_operation.fields.spec_description, document["info"]["description"]):set_generated()
           end
           if document["externaldocs"]["description"] ~= nil then
-            subtree:add(openapi_proto_operation.fields.docs_description, document["externaldocs"]["description"]):set_generated()
+            operation_subtree:add(openapi_proto_operation.fields.docs_description, document["externaldocs"]["description"]):set_generated()
           end
           if document["externaldocs"]["url"] ~= nil then
-            subtree:add(openapi_proto_operation.fields.docs_url, document["externaldocs"]["url"]):set_generated()
+            operation_subtree:add(openapi_proto_operation.fields.docs_url, document["externaldocs"]["url"]):set_generated()
           end
         end
       end
       if request_info["summary"] ~= nil then
-        subtree:add(openapi_proto_operation.fields.summary, request_info["summary"]):set_generated()
+        operation_subtree:add(openapi_proto_operation.fields.summary, request_info["summary"]):set_generated()
       end
       if request_info["operation"] ~= nil then
-        subtree:add(openapi_proto_operation.fields.operation, request_info["operation"]):set_generated()
+        operation_subtree:add(openapi_proto_operation.fields.operation, request_info["operation"]):set_generated()
       end
       if request_info["description"] ~= nil then
-        subtree:add(openapi_proto_operation.fields.description, request_info["description"]):set_generated()
+        operation_subtree:add(openapi_proto_operation.fields.description, request_info["description"]):set_generated()
       end
 
       if not request_info["parsed"] then
