@@ -1,0 +1,20 @@
+local openapi_fields = {}
+local openapi_field_types = {}
+
+openapi_fields["nfInstanceId"] = {"all[adrfId]", "all[afID]", "all[altAnchorSmfId]", "all[amfAddress]", "all[amfId]", "all[amfInstanceId]", "all[amfNfId]", "all[ausfInstanceId]", "all[consumerId]", "all[hpcfId]", "all[hPcfId]", "all[hsmfId]", "all[hSmfId]", "all[hSmfInstanceId]", "all[hssInstanceId]", "all[ipSmGwInstanceId]", "all[ipSmGwNfInstanceId]", "all[ismfId]", "all[iss]", "all[items]", "all[mbsmfId]", "all[modelProvId]", "all[newIntermediateSmfId]", "all[newSmfId]", "all[newSmfInstanceId]", "all[nfcInstanceId]", "all[nfId]", "all[nfInstanceId]", "all[NfInstanceId]", "all[nFName]", "all[nrfInstanceId]", "all[nwdafId]", "all[nwdafInstanceId]", "all[oldSmfId]", "all[pcfId]", "all[primaryChfInstance]", "all[primaryChfInstanceId]", "all[producerId]", "all[psaUpfId]", "all[reqInstanceId]", "all[reqNfInstanceId]", "all[routerNfInstanceId]", "all[schema]", "all[scscfInstanceId]", "all[secondaryChfInstance]", "all[secondaryChfInstanceId]", "all[selectedOldSmfId]", "all[selectedSmfId]", "all[servingNfId]", "all[servingNode]", "all[servNfInstId]", "all[smContextSmfId]", "all[smfId]", "all[smfInstanceId]", "all[smsfAddress]", "all[smsfId]", "all[smsfInstanceId]", "all[sourceNfInstanceId]", "all[sub]", "all[targetNfId]", "all[targetNfInstanceId]", "all[targetNode]", "all[targetServingNfId]", "all[targetServingNode]", "all[ulClBpId]", "all[ulclBpUpfId]", "all[uPFID]", "all[vsmfId]", "serviceInstanceId"}
+openapi_fields["subscriptionId"] = "root[subscriptionId]"
+openapi_fields["servingNetworkName"] = "root[servingNetworkName]"
+
+openapi_fields["ipv4Address"] = {"all{ipv4Address}", "root[ipv4Addresses][*]"}
+
+openapi_fields["nfType"] = "all[nfType]"
+openapi_fields["nfStatus"] = "all[nfStatus]"
+openapi_fields["supi"] = {"all[supi]", "all[supiOrSuci]"}
+
+openapi_fields["port"] = "all[port]"
+openapi_field_types["port"] = "uint16"
+
+openapi_fields["mcc"] = "all[mcc]"
+openapi_fields["mnc"] = "all[mnc]"
+
+return {openapi_fields=openapi_fields, openapi_field_types=openapi_field_types}
