@@ -898,7 +898,7 @@ set_plugin_info({
 
 openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation (requires Wireshark restart or plugin reload)", openapi_specs_enum, false)
 openapi_proto.prefs.coloring = Pref.bool("OpenAPI coloring", true, "Enable default coloring rules")
-openapi_proto.prefs.data_tree = Pref.bool("OpenAPI data tree", true, "Show data tree in packet dissection (can be used for filter creation)")
+openapi_proto.prefs.data_tree = Pref.bool("OpenAPI data tree", false, "Show data tree in packet dissection (can be used for filter creation)")
 openapi_proto.prefs.http2_ports = Pref.range("OpenAPI http2 ports", "7777,8080", "List of ports to automatically apply HTTP2 dissector", 65535)
 
 local http2_dissector = Dissector.get("http2")
