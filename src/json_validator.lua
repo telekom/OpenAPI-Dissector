@@ -512,16 +512,9 @@ function validate_json(content, schema, path, errors, extra_infos)
 end
 
 -- main entrypoint
-function validate_raw_json(raw_json, schema, path, errors, extra_infos, spec)
+function validate_json_main(content, schema, path, errors, extra_infos, spec)
   openapi_spec = spec
-  local status, content = pcall(json.decode, raw_json)
-  if status and content ~= nil then
-    debug_print(content, schema, path, errors)
-    return validate_json(content, schema, path, errors, extra_infos)
-  else
-    table.insert(errors, "Unable to decode json data")
-    return false
-  end
+  return validate_json(content, schema, path, errors, extra_infos)
 end
 
 -- helper functions
@@ -562,5 +555,5 @@ end
 
 -- DEFINE LIB
 lib = {}
-lib["validate_raw_json"] = validate_raw_json
+lib["main"] = validate_json_main
 return lib

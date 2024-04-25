@@ -3,6 +3,10 @@ local json_validator = require "json_validator"
 
 local openapi_specs_lib = require "openapi_spec"
 
+local has_openapi_fields, openapi_fields = pcall(require, "openapi_fields")
+if not has_openapi_fields then
+  openapi_fields = {openapi_fields = {}, openapi_field_types = {}}
+end
 
 local DEBUG = false
 
@@ -75,6 +79,7 @@ openapi_proto_operation.fields.callback_registration = ProtoField.framenum("open
 -- request data
 openapi_proto_request.fields.request_data = ProtoField.string("openapi.request.data", "Request Data")
 openapi_proto_request.fields.request_data_frame = ProtoField.framenum("openapi.request.data_frame", "Request Data Frame")
+openapi_proto_request.fields.request_data_tree = ProtoField.string("openapi.request.data_tree", "Request Data Tree Item")
 
 -- response headers
 openapi_proto_response.fields.response_headers_frame = ProtoField.framenum("openapi.response.headers_frame", "Response Headers Frame")
@@ -88,6 +93,27 @@ openapi_proto_response.fields.response_warning = ProtoField.string("openapi.resp
 -- response data
 openapi_proto_response.fields.response_data = ProtoField.string("openapi.response.data", "Response Data")
 openapi_proto_response.fields.response_data_frame = ProtoField.framenum("openapi.response.data_frame", "Response Data Frame")
+openapi_proto_response.fields.response_data_tree = ProtoField.string("openapi.response.data_tree", "Response Data Tree Item")
+
+-- custom fields
+local openapi_field_paths = {}
+for name, paths in pairs(openapi_fields.openapi_fields) do
+  if type(paths) == "string" then
+    paths = {paths}
+  end
+
+  if openapi_proto_request.fields["request_data." .. name] == nil then
+    if openapi_fields.openapi_field_types[name] == nil then
+      openapi_fields.openapi_field_types[name] = "string"
+    end
+    openapi_proto_request.fields["request_data." .. name] = ProtoField[openapi_fields.openapi_field_types[name]]("openapi.request.data." .. name, "Request Data (" .. name .. ")")
+    openapi_proto_response.fields["response_data." .. name] = ProtoField[openapi_fields.openapi_field_types[name]]("openapi.response.data." .. name, "Response Data (" .. name .. ")")
+  end
+  for idx, path in pairs(paths) do
+    openapi_field_paths["request_data." .. path] = openapi_proto_request.fields["request_data." .. name]
+    openapi_field_paths["response_data." .. path] = openapi_proto_response.fields["response_data." .. name]
+  end
+end
 
 openapi_spec = {}
 openapi_proto_version = nil
@@ -109,8 +135,43 @@ function hexdecode(hex)
   return (hex:gsub("%x%x", function(digits) return string.char(tonumber(digits, 16)) end))
 end
 
+function generate_fields(content, path, extra_infos, key)
+  if type(content) == "table" then
+    for k, v in pairs(content) do
+      if type(k) == "number" then
+        if type(v) == "table" then
+          generate_fields(content[k], path .. "[*]", extra_infos, "*")
+        else
+          generate_fields(content[k], path, extra_infos, "*")
+        end
+      else
+        if type(v) == "table" then
+          generate_fields(content[k], path .. "[" .. k .. "]", extra_infos, k)
+        else
+          generate_fields(content[k], path, extra_infos, k)
+        end
+      end
+    end
+  else
+    extra_infos["fields"][path .. "[" .. key .. "]"] = content
+    extra_infos["fields"]["all[" .. key .. "]"] = content
+  end
+end
+
+function validate_raw_json(raw_json, schema, path, errors, extra_infos, spec)
+  json.decode(raw_json)
+  local status, content = pcall(json.decode, raw_json)
+  if status and content ~= nil then
+    generate_fields(content, "root", extra_infos)
+    return json_validator.main(content, schema, path, errors, extra_infos, spec)
+  else
+    table.insert(errors, "Unable to decode json data")
+    return nil
+  end
+end
+
 local validators = {}
-validators["application/json"] = json_validator.validate_raw_json
+validators["application/json"] = validate_raw_json
 
 function parse_multipart_message(data, content_type, content_spec)
   local parts = {}
@@ -236,8 +297,8 @@ function validate_request(request_info, request_spec, callbacks)
       extra_info["type"] = "request"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = callback_spec
+      extra_info["fields"] = {}
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
-      local out = ""
       if valid then
         for _, err in pairs(errors) do
           table.insert(request_info["warnings"], "Validation: " .. err)
@@ -246,6 +307,9 @@ function validate_request(request_info, request_spec, callbacks)
         for _, err in pairs(errors) do
           table.insert(request_info["errors"], "Validation: " .. err)
         end
+      end
+      for k, v in pairs(extra_info["fields"]) do
+        request_info["fields"][k] = v
       end
       request_info["valid"] = valid
       return valid
@@ -292,11 +356,8 @@ function validate_response(request_info, response_info, response_spec)
       extra_info["type"] = "response"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = {}
+      extra_info["fields"] = {}
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
-      local out = ""
-      for i, v in pairs(errors) do
-        out = out .. v .. "\n"
-      end
       if valid then
         for _, err in pairs(errors) do
           table.insert(response_info["warnings"], "Validation: " .. err)
@@ -305,6 +366,9 @@ function validate_response(request_info, response_info, response_spec)
         for _, err in pairs(errors) do
           table.insert(response_info["errors"], "Validation: " .. err)
         end
+      end
+      for k, v in pairs(extra_info["fields"]) do
+        response_info["fields"][k] = v
       end
       response_info["valid"] = valid
       return valid
@@ -488,10 +552,12 @@ function openapi_proto.dissector(buf, pinfo, tree)
     if request_info ~= nil then
       if request_info["errors"] == nil then request_info["errors"] = {} end
       if request_info["warnings"] == nil then request_info["warnings"] = {} end
+      if request_info["fields"] == nil then request_info["fields"] = {} end
     end
     if response_info ~= nil then
       if response_info["errors"] == nil then response_info["errors"] = {} end
       if response_info["warnings"] == nil then response_info["warnings"] = {} end
+      if response_info["fields"] == nil then response_info["fields"] = {} end
     end
 
     -- ignore visited
@@ -557,8 +623,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
         goto http2_transfers_loop_end
       end
 
-      local toptree
-      toptree = tree:add(openapi_proto, short_description)
+      local toptree = tree:add(openapi_proto, short_description)
       local operation_subtree = toptree:add(openapi_proto_operation, "Operation")
       local request_subtree = toptree:add(openapi_proto_request, "Request")
       local response_subtree = toptree:add(openapi_proto_response, "Response")
@@ -706,6 +771,14 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
       if request_info["data"] ~= nil then
         request_subtree:add(openapi_proto_request.fields.request_data, request_info["data"]):set_generated()
+        for k, v in pairs(request_info["fields"]) do
+          if openapi_proto.prefs.data_tree and string.sub(k, 1, 4) == "root" then
+            request_subtree:add(openapi_proto_request.fields.request_data_tree, string.format("%s = %s", k, v)):set_generated()
+          end
+          if openapi_field_paths["request_data." .. k] ~= nil then
+            request_subtree:add(openapi_field_paths["request_data." .. k], v):set_generated()
+          end
+        end
       end
       if request_info["content_type"] ~= nil then
         request_subtree:add(openapi_proto_request.fields.request_content_type, request_info["content_type"]):set_generated()
@@ -726,6 +799,14 @@ function openapi_proto.dissector(buf, pinfo, tree)
       end
       if response_info["data"] ~= nil then
         response_subtree:add(openapi_proto_response.fields.response_data, response_info["data"]):set_generated()
+        for k, v in pairs(response_info["fields"]) do
+          if openapi_proto.prefs.data_tree and string.sub(k, 1, 4) == "root" then
+            response_subtree:add(openapi_proto_response.fields.response_data_tree, string.format("%s = %s", k, v)):set_generated()
+          end
+          if openapi_field_paths["response_data." .. k] ~= nil then
+            response_subtree:add(openapi_field_paths["response_data." .. k], v):set_generated()
+          end
+        end
       end
       if response_info["status"] ~= nil then
         response_subtree:add(openapi_proto_response.fields.response_status, response_info["status"]):set_generated()
@@ -816,6 +897,7 @@ set_plugin_info({
 
 openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_enum, "Specify which OpenAPI specification should be used during validation (requires Wireshark restart or plugin reload)", openapi_specs_enum, false)
 openapi_proto.prefs.coloring = Pref.bool("OpenAPI coloring", true, "Enable default coloring rules")
+openapi_proto.prefs.data_tree = Pref.bool("OpenAPI data tree", true, "Show data tree in packet dissection (can be used for filter creation)")
 openapi_proto.prefs.http2_ports = Pref.range("OpenAPI http2 ports", "7777,8080", "List of ports to automatically apply HTTP2 dissector", 65535)
 
 local http2_dissector = Dissector.get("http2")
@@ -823,4 +905,3 @@ local tcp_table = DissectorTable.get("tcp.port")
 tcp_table:add(openapi_proto.prefs.http2_ports, http2_dissector)
 
 register_postdissector(openapi_proto)
-
