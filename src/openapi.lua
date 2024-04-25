@@ -716,7 +716,7 @@ function openapi_proto.dissector(buf, pinfo, tree)
           end
 
           if path_spec["responses"] ~= nil then
-            if response_info["status"] ~= nil then
+            if response_info["status"] ~= nil and response_info["status"] ~= 204 then
               if path_spec["responses"][response_info["status"]] ~= nil then
                 validate_response(request_info, response_info, path_spec["responses"][response_info["status"]])
               elseif path_spec["responses"]["default"] ~= nil then
