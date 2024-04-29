@@ -299,15 +299,24 @@ function validate_request(request_info, request_spec, callbacks)
       extra_info["type"] = "request"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = callback_spec
+      extra_info["machine_readable"] = openapi_proto.prefs.machine_readable
       extra_info["fields"] = {}
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
       if valid then
         for _, err in pairs(errors) do
-          table.insert(request_info["warnings"], "Validation: " .. err)
+          if openapi_proto.prefs.machine_readable then
+            table.insert(request_info["warnings"], "validation," .. err)
+          else
+            table.insert(request_info["warnings"], "Validation: " .. err)
+          end
         end
       else
         for _, err in pairs(errors) do
-          table.insert(request_info["errors"], "Validation: " .. err)
+          if openapi_proto.prefs.machine_readable then
+            table.insert(request_info["errors"], "validation," .. err)
+          else
+            table.insert(request_info["errors"], "Validation: " .. err)
+          end
         end
       end
       for k, v in pairs(extra_info["fields"]) do
@@ -358,15 +367,24 @@ function validate_response(request_info, response_info, response_spec)
       extra_info["type"] = "response"
       extra_info["callback_map"] = callback_map
       extra_info["callback_spec"] = {}
+      extra_info["machine_readable"] = openapi_proto.prefs.machine_readable
       extra_info["fields"] = {}
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
       if valid then
         for _, err in pairs(errors) do
-          table.insert(response_info["warnings"], "Validation: " .. err)
+          if openapi_proto.prefs.machine_readable then
+            table.insert(response_info["warnings"], "validation," .. err)
+          else
+            table.insert(response_info["warnings"], "Validation: " .. err)
+          end
         end
       else
         for _, err in pairs(errors) do
-          table.insert(response_info["errors"], "Validation: " .. err)
+          if openapi_proto.prefs.machine_readable then
+            table.insert(response_info["errors"], "validation," .. err)
+          else
+            table.insert(response_info["errors"], "Validation: " .. err)
+          end
         end
       end
       for k, v in pairs(extra_info["fields"]) do
@@ -900,6 +918,7 @@ openapi_proto.prefs.version = Pref.enum("OpenAPI specification", #openapi_specs_
 openapi_proto.prefs.coloring = Pref.bool("OpenAPI coloring", true, "Enable default coloring rules")
 openapi_proto.prefs.data_tree = Pref.bool("OpenAPI data tree", false, "Show data tree in packet dissection (can be used for filter creation)")
 openapi_proto.prefs.http2_ports = Pref.range("OpenAPI http2 ports", "7777,8080", "List of ports to automatically apply HTTP2 dissector", 65535)
+openapi_proto.prefs.machine_readable = Pref.bool("OpenAPI machine readable output", false, "Better machine-readability for validation errors")
 
 local http2_dissector = Dissector.get("http2")
 local tcp_table = DissectorTable.get("tcp.port")

@@ -32,7 +32,11 @@ function validate_json_string(content, schema, path, errors, extra_infos)
     if rex_pcre2.match(content, schema_pattern) ~= nil then
       return true
     else
-      table.insert(errors, "String at " .. path .. " does not match given pattern " .. schema_pattern)
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "string.pattern," .. path .. "," .. schema_pattern)
+      else
+        table.insert(errors, "String at " .. path .. " does not match given pattern " .. schema_pattern)
+      end
       return false
     end
   end
@@ -48,7 +52,11 @@ function validate_json_boolean(content, schema, path, errors, extra_infos)
   if type(content) == "boolean" then
     return true
   else
-    table.insert(errors, "Object at " .. path .. " doesn't seem to be boolean.")
+    if extra_infos["machine_readable"] then
+      table.insert(errors, "bool.wrongtype," .. path)
+    else
+      table.insert(errors, "Object at " .. path .. " doesn't seem to be boolean.")
+    end
     return false
   end
 end
@@ -56,7 +64,11 @@ end
 function validate_json_number(content, schema, path, errors, extra_infos)
   -- check for number type
   if type(content) ~= "number" then
-    table.insert(errors, "Object at " .. path .. " doesn't seem to be a number.")
+    if extra_infos["machine_readable"] then
+      table.insert(errors, "number.wrongtype," .. path)
+    else
+      table.insert(errors, "Object at " .. path .. " doesn't seem to be a number.")
+    end
     return false
   end
 
@@ -66,12 +78,20 @@ function validate_json_number(content, schema, path, errors, extra_infos)
 
   if schema_exclusiveMinimum then
     if schema_minimum ~= nil and not (content > schema_minimum) then
-      table.insert(errors, "Number at " .. path .. " is outside of minimum boundary.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "number.boundary.minimum," .. path .. "," .. schema_minimum)
+      else
+        table.insert(errors, "Number at " .. path .. " is outside of minimum boundary (" .. schema_minimum .. ")")
+      end
       return false
     end
   else
     if schema_minimum ~= nil and not (content >= schema_minimum) then
-      table.insert(errors, "Number at " .. path .. " is outside of minimum boundary.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "number.boundary.minimum," .. path .. "," .. schema_minimum)
+      else
+        table.insert(errors, "Number at " .. path .. " is outside of minimum boundary (" .. schema_minimum .. ")")
+      end
       return false
     end
   end
@@ -82,12 +102,20 @@ function validate_json_number(content, schema, path, errors, extra_infos)
 
   if schema_exclusiveMaximum then
     if schema_maximum ~= nil and not (content < schema_maximum) then
-      table.insert(errors, "Number at " .. path .. " is outside of maximum boundary.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "number.boundary.maximum," .. path .. "," .. schema_maximum)
+      else
+        table.insert(errors, "Number at " .. path .. " is outside of maximum boundary (" .. schema_maximum .. ")")
+      end
       return false
     end
   else
     if schema_maximum ~= nil and not (content <= schema_maximum) then
-      table.insert(errors, "Number at " .. path .. " is outside of maximum boundary.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "number.boundary.maximum," .. path .. "," .. schema_maximum)
+      else
+        table.insert(errors, "Number at " .. path .. " is outside of maximum boundary (" .. schema_maximum .. ")")
+      end
       return false
     end
   end
@@ -97,7 +125,11 @@ function validate_json_number(content, schema, path, errors, extra_infos)
 
   if schema_multipleOf ~= nil then
     if (content % schema_multipleOf) ~= 0.0 then
-      table.insert(errors, "Number at " .. path .. " violates defined multipleOf policy.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "number.multipleof," .. path .. "," .. schema_multipleOf)
+      else
+        table.insert(errors, "Number at " .. path .. " violates defined multipleOf policy (" .. schema_multipleOf .. ")")
+      end
       return false
     end
   end
@@ -109,19 +141,31 @@ function validate_json_array(content, schema, path, errors, extra_infos)
   local failed = false
 
   if type(content) ~= "table" then
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be an array (non-table data structure).")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "array.wrongtype," .. path .. ",non-table-structure")
+      else
+        table.insert(errors, "Object at " .. path .. " doesn't seem to be an array (non-table data structure).")
+      end
       return false
   end
   local num_items = 0
   for k in pairs(content) do
     num_items = num_items + 1
     if tonumber(k) == nil then
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be an array (non-numeric index).")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "array.wrongtype," .. path .. ",non-numeric-index")
+      else
+        table.insert(errors, "Object at " .. path .. " doesn't seem to be an array (non-numeric index).")
+      end
       return false
     end
   end
   if num_items ~= #content then
-    table.insert(errors, "Object at " .. path .. " doesn't seem to be an array.")
+    if extra_infos["machine_readable"] then
+      table.insert(errors, "array.wrongtype," .. path .. ",non-sequential-index")
+    else
+      table.insert(errors, "Object at " .. path .. " doesn't seem to be an array.")
+    end
     return false
   end
 
@@ -129,7 +173,11 @@ function validate_json_array(content, schema, path, errors, extra_infos)
   local schema_minItems = openapi_get_value(schema, "minItems")
   if schema_minItems ~= nil then
     if num_items < schema_minItems then
-      table.insert(errors, "Array at " .. path .. " contains fewer items than allowed.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "array.minitems," .. path .. "," .. schema_minItems)
+      else
+        table.insert(errors, "Array at " .. path .. " contains fewer items than allowed (min: " .. schema_minItems .. ")")
+      end
       failed = true
     end
   end
@@ -138,7 +186,11 @@ function validate_json_array(content, schema, path, errors, extra_infos)
   local schema_maxItems = openapi_get_value(schema, "maxItems")
   if schema_maxItems ~= nil then
     if num_items > schema_maxItems then
-      table.insert(errors, "Array at " .. path .. " contains more items than allowed.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "array.maxitems," .. path .. "," .. schema_maxItems)
+      else
+        table.insert(errors, "Array at " .. path .. " contains more items than allowed (max: " .. schema_maxItems .. ")")
+      end
       failed = true
     end
   end
@@ -159,7 +211,11 @@ function validate_json_array(content, schema, path, errors, extra_infos)
       end
 
       if hashfound then
-          table.insert(errors, "Array at " .. path .. " contains non-unique items.")
+          if extra_infos["machine_readable"] then
+            table.insert(errors, "array.nonunique," .. path)
+          else
+            table.insert(errors, "Array at " .. path .. " contains non-unique items.")
+          end
           failed = true
           break
       end
@@ -197,15 +253,27 @@ function validate_json_object(content, schema, path, errors, extra_infos)
         elseif openapi_get_value(subschemas[key], "writeOnly") and extra_infos["type"] == "response" then
           -- do nothing
         else
-          table.insert(errors, "Missing required argument '" .. key .. "' at " .. path)
+          if extra_infos["machine_readable"] then
+            table.insert(errors, "object.missing_argument," .. key .. "," .. path)
+          else
+            table.insert(errors, "Missing required argument '" .. key .. "' at " .. path)
+          end
           valid = false
         end
       else
         if openapi_get_value(subschemas[key], "readOnly") and extra_infos["type"] == "request" then
-          table.insert(errors, "Sending readOnly argument '" .. key .."' in request at " .. path)
+          if extra_infos["machine_readable"] then
+            table.insert(errors, "object.send_readonly," .. key .."," .. path)
+          else
+            table.insert(errors, "Sending readOnly argument '" .. key .."' in request at " .. path)
+          end
           valid = false
         elseif openapi_get_value(subschemas[key], "writeOnly") and extra_infos["type"] == "response" then
-          table.insert(errors, "Sending writeOnly argument '" .. key .."' in response at " .. path)
+          if extra_infos["machine_readable"] then
+            table.insert(errors, "object.receive_writeonly," .. key .."," .. path)
+          else
+            table.insert(errors, "Sending writeOnly argument '" .. key .."' in response at " .. path)
+          end
           valid = false
         end
       end
@@ -233,7 +301,11 @@ function validate_json_object(content, schema, path, errors, extra_infos)
       if not_required ~= nil then
         for _, key in pairs(not_required) do
           if content[key] ~= nil then
-            table.insert(errors, "Object contains forbidden argument '" .. key .. "' at " .. path)
+            if extra_infos["machine_readable"] then
+              table.insert(errors, "object.forbidden_key," .. key .."," .. path)
+            else
+              table.insert(errors, "Object contains forbidden argument '" .. key .. "' at " .. path)
+            end
             valid = false
           end
         end
@@ -244,7 +316,11 @@ function validate_json_object(content, schema, path, errors, extra_infos)
         for key, subschema in pairs(not_properties) do
           local suberrors = {}
           if validate_json(content[key], subschema, path .. "[" .. key .. "]", suberrors, extra_infos) then
-            table.insert(errors, "Object argument '" .. key .. "' matches unallowed properties at " .. path)
+            if extra_infos["machine_readable"] then
+              table.insert(errors, "object.unallowed_properties," .. key .."," .. path)
+            else
+              table.insert(errors, "Object argument '" .. key .. "' matches unallowed properties at " .. path)
+            end
             valid = false
           end
         end
@@ -263,7 +339,11 @@ function validate_json_object(content, schema, path, errors, extra_infos)
   local schema_minProperties = openapi_get_value(schema, "minProperties")
   if schema_minProperties ~= nil then
     if num_properties < schema_minProperties then
-      table.insert(errors, "Object at " .. path .. " contains fewer properties than allowed.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "object.minproperties," .. path .. "," .. schema_minProperties)
+      else
+        table.insert(errors, "Object at " .. path .. " contains fewer properties than allowed (min: " .. schema_minProperties .. ")")
+      end
       valid = false
     end
   end
@@ -272,7 +352,11 @@ function validate_json_object(content, schema, path, errors, extra_infos)
   local schema_maxProperties = openapi_get_value(schema, "maxProperties")
   if schema_maxProperties ~= nil then
     if num_properties > schema_maxProperties then
-      table.insert(errors, "Object at " .. path .. " contains more properties than allowed.")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "object.maxproperties," .. path .. "," .. schema_maxProperties)
+      else
+        table.insert(errors, "Object at " .. path .. " contains more properties than allowed (max: " .. schema_maxProperties .. ")")
+      end
       valid = false
     end
   end
@@ -283,7 +367,11 @@ function validate_json_object(content, schema, path, errors, extra_infos)
     -- TODO: this seems wrong?
     for key, subcontent in pairs(content) do
       if schema_additional_properties == false and schema_properties[key] == nil then
-        table.insert(errors, "Disallowed additional property '" .. key .. "' at " .. path)
+        if extra_infos["machine_readable"] then
+          table.insert(errors, "object.disallowed_additional_property," .. key .. "," .. path)
+        else
+          table.insert(errors, "Disallowed additional property '" .. key .. "' at " .. path)
+        end
       elseif type(schema_additional_properties) == "table" then
         if not validate_json(content[key], schema_additional_properties, path .. "[" .. key .. "]", errors, extra_infos) then
           valid = false
@@ -296,10 +384,18 @@ end
 
 function validate_json_integer(content, schema, path, errors, extra_infos)
   if not validate_json_number(content, schema, path, errors, extra_infos) then
-    table.insert(errors, "Object at " .. path .. " doesn't seem to be a number, so it also can't be an integer.")
+    if extra_infos["machine_readable"] then
+      table.insert(errors, "integer.wrongtype," .. path .. ",not-a-number")
+    else
+      table.insert(errors, "Object at " .. path .. " doesn't seem to be a number, so it also can't be an integer.")
+    end
     return false
   elseif math.floor(content) ~= content then
-    table.insert(errors, "Object at " .. path .. " doesn't seem to be an integer.")
+    if extra_infos["machine_readable"] then
+      table.insert(errors, "integer.wrongtype," .. path .. ",non-zero-decimal")
+    else
+      table.insert(errors, "Object at " .. path .. " doesn't seem to be an integer.")
+    end
     return false
   else
     return true
@@ -323,7 +419,11 @@ function validate_multiple(content, schema, mtype, path, suberrors, extra_infos)
     local discriminator_value = content[propname]
 
     if discriminator_value == nil then
-      table.insert(suberrors, "Discriminator " .. path .. "[" .. propname .. "] missing, oneOf validation can't continue")
+      if extra_infos["machine_readable"] then
+        table.insert(suberrors, "oneof.discriminator_missing," .. path .. "[" .. propname .. "]")
+      else
+        table.insert(suberrors, "Discriminator " .. path .. "[" .. propname .. "] missing, oneOf validation can't continue")
+      end
       debug_print("Left " .. mtype .. " validation at " .. path .. " (fail? discriminator '" .. propname .. "' missing in object)")
       return 0, 1
     end
@@ -430,7 +530,11 @@ function validate_json(content, schema, path, errors, extra_infos)
         return true
       end
     end
-    table.insert(errors, "Value at " .. path .. " does not match any entry in enumeration")
+    if extra_infos["machine_readable"] then
+      table.insert(errors, "enum.nomatch," .. path)
+    else
+      table.insert(errors, "Value at " .. path .. " does not match any entry in enumeration")
+    end
     return false
   end
 
@@ -440,18 +544,36 @@ function validate_json(content, schema, path, errors, extra_infos)
     local suberrors = {}
     local valid, invalid, valids = validate_multiple(content, schema, "oneOf", path, suberrors, extra_infos)
     if valid ~= 1 then
-      table.insert(errors, "oneOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "oneof.criterium_failed," .. path .. ",valid=" .. valid .. ",invalid=" .. invalid)
+      else
+        table.insert(errors, "oneOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+      end
       if valid > 1 then
-        table.insert(errors, ">> Multiple valid in oneOf criterium: " .. table.concat(valids, ", "))
+        if extra_infos["machine_readable"] then
+          table.insert(errors, "oneof.multiple_valid," .. path .. "," .. table.concat(valids, ","))
+        else
+          table.insert(errors, ">> Multiple valid in oneOf criterium: " .. table.concat(valids, ", "))
+        end
       else
         for k, v in pairs(suberrors) do
           if type(v) == "table" then
-            table.insert(errors, ">> # " .. k)
+            if not extra_infos["machine_readable"] then
+              table.insert(errors, ">> # " .. k)
+            end
             for _, err in pairs(v) do
-              table.insert(errors, ">> " .. err)
+              if extra_infos["machine_readable"] then
+                table.insert(errors, "oneof.suberror," .. path .. "," .. k .. "," .. err)
+              else
+                table.insert(errors, ">> " .. err)
+              end
             end
           else
-            table.insert(errors, ">> " .. v)
+            if extra_infos["machine_readable"] then
+              table.insert(errors, "oneof.suberror," .. path .. "," .. v)
+            else
+              table.insert(errors, ">> " .. v)
+            end
           end
         end
       end
@@ -462,15 +584,29 @@ function validate_json(content, schema, path, errors, extra_infos)
     local suberrors = {}
     local valid, invalid = validate_multiple(content, schema, "anyOf", path, suberrors, extra_infos)
     if valid == 0 then
-      table.insert(errors, "anyOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "anyof.criterium_failed," .. path .. ",valid=" .. valid .. ",invalid=" .. invalid)
+      else
+        table.insert(errors, "anyOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+      end
       for k, v in pairs(suberrors) do
         if type(v) == "table" then
-          table.insert(errors, ">> # " .. k)
+          if not extra_infos["machine_readable"] then
+            table.insert(errors, ">> # " .. k)
+          end
           for _, err in pairs(v) do
-            table.insert(errors, ">> " .. err)
+            if extra_infos["machine_readable"] then
+              table.insert(errors, "anyof.suberror," .. path .. "," .. k .. "," .. err)
+            else
+              table.insert(errors, ">> " .. err)
+            end
           end
         else
-          table.insert(errors, ">> " .. v)
+          if extra_infos["machine_readable"] then
+            table.insert(errors, "anyof.suberror," .. path .. "," .. v)
+          else
+            table.insert(errors, ">> " .. v)
+          end
         end
       end
       return false
@@ -480,7 +616,11 @@ function validate_json(content, schema, path, errors, extra_infos)
     local suberrors = {}
     local valid, invalid = validate_multiple(content, schema, "allOf", path, suberrors, extra_infos)
     if invalid > 0 then
-      table.insert(errors, "allOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "all.criterium_failed," .. path .. ",valid=" .. valid .. ",invalid=" .. invalid)
+      else
+        table.insert(errors, "allOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+      end
       return false
     end
   end
@@ -505,10 +645,18 @@ function validate_json(content, schema, path, errors, extra_infos)
     end
     if schema_type == nil then
       debug_print("No schema type found at " .. path)
-      table.insert(errors, "No schema type found at " .. path)
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "schema.notype," .. path)
+      else
+        table.insert(errors, "No schema type found at " .. path)
+      end
     else
       debug_print("Unknown schema type '" .. schema_type .. "' at " .. path)
-      table.insert(errors, "Unknown schema type '" .. schema_type .. "' at " .. path)
+      if extra_infos["machine_readable"] then
+        table.insert(errors, "schema.unknowntype," .. path .. "," .. schema_type)
+      else
+        table.insert(errors, "Unknown schema type '" .. schema_type .. "' at " .. path)
+      end
       return false
     end
   end
