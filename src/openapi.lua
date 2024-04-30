@@ -118,6 +118,7 @@ end
 
 openapi_spec = {}
 openapi_proto_version = nil
+openapi_firstrun = true
 function openapi_proto.init()
   if openapi_proto_version == nil then
     openapi_proto_version = openapi_proto.prefs.version
@@ -126,10 +127,6 @@ function openapi_proto.init()
 
   stream_map = {}
   resp_map = {}
-  if gui_enabled() and openapi_proto.prefs.coloring then
-    set_color_filter_slot(1, "openapi.operation.error || openapi.request.error || openapi.response.error")
-    set_color_filter_slot(8, "openapi.operation.warning || openapi.request.warning || openapi.response.warning")
-  end
 end
 
 function hexdecode(hex)
@@ -472,6 +469,19 @@ end
 
 local substreamnums = {}
 function openapi_proto.dissector(buf, pinfo, tree)
+  -- workaround for processing filters on first load
+  if openapi_firstrun then
+    if gui_enabled() then
+      if openapi_proto.prefs.coloring then
+        set_color_filter_slot(1, "openapi.operation.error || openapi.request.error || openapi.response.error")
+        set_color_filter_slot(8, "openapi.operation.warning || openapi.request.warning || openapi.response.warning")
+      end
+      openapi_firstrun = false
+      set_filter(get_filter())
+      apply_filter()
+    end
+  end
+
   -- ignore non-tcp
   local tcp_stream = f_tcp_stream()
   if not tcp_stream then return end
