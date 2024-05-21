@@ -40,7 +40,7 @@ git clone -b REL-18 https://forge.3gpp.org/rep/all/5G_APIs specs/18.x
 python3 generate.py specs
 ```
 
-`gererate.py` processes each of the 3GPP-Releases specific OpenAPI yaml files (from subdirectories named by release version) and as a result the `openapi_spec.lua` is created in the generator directory.
+`generate.py` processes each of the 3GPP-Releases specific OpenAPI yaml files (from subdirectories named by release version) and as a result the `openapi_spec.lua` is created in the generator directory.
 
 ### Download json library
 

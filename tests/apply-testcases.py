@@ -14,11 +14,11 @@ for i, line in enumerate(open(sys.argv[1]).read().splitlines()):
 
     schema = sys.argv[3] if len(sys.argv) > 3 else ""
 
-    splitted = line.split()
-    if len(splitted) == 6:
-        method, path, reqdata, status, data, testsrc = splitted
-    elif len(splitted) == 7:
-        method, path, reqdata, status, data, testsrc, schema = splitted
+    arguments = line.split()
+    if len(arguments) == 6:
+        method, path, reqdata, status, data, testsrc = arguments
+    elif len(arguments) == 7:
+        method, path, reqdata, status, data, testsrc, schema = arguments
     else:
         raise Exception("invalid number of arguments for given test case")
 
