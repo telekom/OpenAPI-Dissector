@@ -621,6 +621,26 @@ function validate_json(content, schema, path, errors, extra_infos)
       else
         table.insert(errors, "allOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
       end
+      for k, v in pairs(suberrors) do
+        if type(v) == "table" then
+          if not extra_infos["machine_readable"] then
+            table.insert(errors, ">> # " .. k)
+          end
+          for _, err in pairs(v) do
+            if extra_infos["machine_readable"] then
+              table.insert(errors, json.encode({error="allof.suberror", path=path, key=k, suberr=json.decode(err)}))
+            else
+              table.insert(errors, ">> " .. err)
+            end
+          end
+        else
+          if extra_infos["machine_readable"] then
+            table.insert(errors, json.encode({error="allof.suberror", path=path, suberr=json.decode(v)}))
+          else
+            table.insert(errors, ">> " .. v)
+          end
+        end
+      end
       return false
     end
   end
