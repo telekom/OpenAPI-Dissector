@@ -298,6 +298,7 @@ function validate_request(request_info, request_spec, callbacks)
       extra_info["callback_spec"] = callback_spec
       extra_info["machine_readable"] = openapi_proto.prefs.machine_readable
       extra_info["fields"] = {}
+      request_info["data"] = part["data"]
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
       if valid then
         for _, err in pairs(errors) do
@@ -366,6 +367,7 @@ function validate_response(request_info, response_info, response_spec)
       extra_info["callback_spec"] = {}
       extra_info["machine_readable"] = openapi_proto.prefs.machine_readable
       extra_info["fields"] = {}
+      response_info["data"] = part["data"]
       local valid = validators[part["headers"]["Content-Type"]](part["data"], part["schema"], "root", errors, extra_info, openapi_spec)
       if valid then
         for _, err in pairs(errors) do
