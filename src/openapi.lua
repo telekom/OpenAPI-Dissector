@@ -164,7 +164,11 @@ function validate_raw_json(raw_json, schema, path, errors, extra_infos, spec)
     generate_fields(content, "root", extra_infos)
     return json_validator.main(content, schema, path, errors, extra_infos, spec)
   else
-    table.insert(errors, "Unable to decode json data")
+    if openapi_proto.prefs.machine_readable then
+      table.insert(errors, "meta," .. json.encode({error="invalid-json", details=raw_json}))
+    else
+      table.insert(errors, "Unable to decode json data")
+    end
     return nil
   end
 end
@@ -270,7 +274,11 @@ function validate_request(request_info, request_spec, callbacks)
   if request_info["content_type"] == nil then
     for spec_content_type, spec_table in pairs(content_spec) do
       request_info["content_type"] = spec_content_type
-      table.insert(request_info["warnings"], "Using guessed content-type: " .. request_info["content_type"])
+      if openapi_proto.prefs.machine_readable then
+        table.insert(request_info["warnings"], "meta," .. json.encode({error="guessed-content-type", details=request_info["content_type"]}))
+      else
+        table.insert(request_info["warnings"], "Using guessed content-type: " .. request_info["content_type"])
+      end
       break
     end
   end
@@ -323,7 +331,11 @@ function validate_request(request_info, request_spec, callbacks)
       request_info["valid"] = valid
       return valid
     else
-      table.insert(request_info["warnings"], "No validator was applied to this request (probably because of missing or weird content type header)")
+      if openapi_proto.prefs.machine_readable then
+        table.insert(request_info["warnings"], "meta," .. json.encode({error="not-validated"}))
+      else
+        table.insert(request_info["warnings"], "No validator was applied to this request (probably because of missing or weird content type header)")
+      end
     end
   end
 end
@@ -339,7 +351,11 @@ function validate_response(request_info, response_info, response_spec)
   if response_info["content_type"] == nil then
     for spec_content_type, spec_table in pairs(content_spec) do
       response_info["content_type"] = spec_content_type
-      table.insert(response_info["warnings"], "Using guessed content-type: " .. response_info["content_type"])
+      if openapi_proto.prefs.machine_readable then
+        table.insert(response_info["warnings"], "meta," .. json.encode({error="guessed-content-type", details=response_info["content_type"]}))
+      else
+        table.insert(response_info["warnings"], "Using guessed content-type: " .. response_info["content_type"])
+      end
       break
     end
   end
@@ -392,7 +408,11 @@ function validate_response(request_info, response_info, response_spec)
       response_info["valid"] = valid
       return valid
     else
-      table.insert(response_info["warnings"], "No validator was applied to this response (probably because of missing or weird content type header)")
+      if openapi_proto.prefs.machine_readable then
+        table.insert(response_info["warnings"], "meta," .. json.encode({error="not-validated"}))
+      else
+        table.insert(response_info["warnings"], "No validator was applied to this response (probably because of missing or weird content type header)")
+      end
     end
   end
 end
@@ -736,7 +756,11 @@ function openapi_proto.dissector(buf, pinfo, tree)
         request_info["path_valid"] = false
         if #path_specs > 0 then
           if #path_specs > 1 then
-            table.insert(request_info["warnings"], "Multiple matching paths found, using first")
+            if openapi_proto.prefs.machine_readable then
+              table.insert(request_info["warnings"], "meta," .. json.encode({error="multiple-matching-pathspecs"}))
+            else
+              table.insert(request_info["warnings"], "Multiple matching paths found, using first")
+            end
           end
           path_spec = path_specs[1] -- TODO: allow multiple matching specs or sort to correct NF?
 
@@ -752,10 +776,18 @@ function openapi_proto.dissector(buf, pinfo, tree)
               elseif path_spec["responses"]["default"] ~= nil then
                 validate_response(request_info, response_info, path_spec["responses"]["default"])
               else
-                table.insert(response_info["errors"], "Invalid response code")
+                if openapi_proto.prefs.machine_readable then
+                  table.insert(response_info["errors"], "meta," .. json.encode({error="invalid-response-code", details=response_info["status"]}))
+                else
+                  table.insert(response_info["errors"], "Invalid response code")
+                end
               end
             else
-              table.insert(response_info["warnings"], "No response code")
+              if openapi_proto.prefs.machine_readable then
+                table.insert(response_info["warnings"], "meta," .. json.encode({error="no-response-code"}))
+              else
+                table.insert(response_info["warnings"], "No response code")
+              end
             end
           end
           if path_spec["summary"] ~= nil then
@@ -773,7 +805,11 @@ function openapi_proto.dissector(buf, pinfo, tree)
             request_info["description"] = path_spec["description"]
           end
         else
-          table.insert(request_info["warnings"], "Path not found in OpenAPI specification")
+          if openapi_proto.prefs.machine_readable then
+            table.insert(request_info["warnings"], "meta," .. json.encode({error="path-not-found", details=request_info["path"]}))
+          else
+            table.insert(request_info["warnings"], "Path not found in OpenAPI specification")
+          end
         end
         request_info["parsed"] = true
       end
