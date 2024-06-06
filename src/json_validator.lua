@@ -60,7 +60,7 @@ function validate_json_boolean(content, schema, path, errors, extra_infos)
     if extra_infos["machine_readable"] then
       table.insert(errors, json.encode({error="bool.wrongtype", path=path}))
     else
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be boolean.")
+      table.insert(errors, "Element at " .. path .. " doesn't seem to be boolean.")
     end
     return false
   end
@@ -72,7 +72,7 @@ function validate_json_number(content, schema, path, errors, extra_infos)
     if extra_infos["machine_readable"] then
       table.insert(errors, json.encode({error="number.wrongtype", path=path}))
     else
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be a number.")
+      table.insert(errors, "Element at " .. path .. " doesn't seem to be a number.")
     end
     return false
   end
@@ -149,7 +149,7 @@ function validate_json_array(content, schema, path, errors, extra_infos)
       if extra_infos["machine_readable"] then
         table.insert(errors, json.encode({error="array.wrongtype", path=path, details="non-table-structure"}))
       else
-        table.insert(errors, "Object at " .. path .. " doesn't seem to be an array (non-table data structure).")
+        table.insert(errors, "Element at " .. path .. " doesn't seem to be an array (non-table data structure).")
       end
       return false
   end
@@ -160,7 +160,7 @@ function validate_json_array(content, schema, path, errors, extra_infos)
       if extra_infos["machine_readable"] then
         table.insert(errors, json.encode({error="array.wrongtype", path=path, details="non-numeric-index"}))
       else
-        table.insert(errors, "Object at " .. path .. " doesn't seem to be an array (non-numeric index).")
+        table.insert(errors, "Element at " .. path .. " doesn't seem to be an array (non-numeric index).")
       end
       return false
     end
@@ -169,7 +169,7 @@ function validate_json_array(content, schema, path, errors, extra_infos)
     if extra_infos["machine_readable"] then
       table.insert(errors, json.encode({error="array.wrongtype", path=path, details="non-sequential-index"}))
     else
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be an array.")
+      table.insert(errors, "Element at " .. path .. " doesn't seem to be an array.")
     end
     return false
   end
@@ -239,6 +239,15 @@ function validate_json_array(content, schema, path, errors, extra_infos)
 end
 
 function validate_json_object(content, schema, path, errors, extra_infos)
+  if type(content) ~= "table" then
+      if extra_infos["machine_readable"] then
+        table.insert(errors, json.encode({error="object.wrongtype", path=path, details="non-table-structure"}))
+      else
+        table.insert(errors, "Element at " .. path .. " doesn't seem to be an object (non-table data structure).")
+      end
+      return false
+  end
+
   local valid = true
 
   local schema_required = openapi_get_value(schema, "required")
@@ -322,9 +331,9 @@ function validate_json_object(content, schema, path, errors, extra_infos)
           local suberrors = {}
           if validate_json(content[key], subschema, path .. "[" .. key .. "]", suberrors, extra_infos) then
             if extra_infos["machine_readable"] then
-              table.insert(errors, json.encode({error="object.unallowed_properties", path=path, details=key}))
+              table.insert(errors, json.encode({error="object.unwanted_properties", path=path, details=key}))
             else
-              table.insert(errors, "Object argument '" .. key .. "' matches unallowed properties at " .. path)
+              table.insert(errors, "Object argument '" .. key .. "' matches unwanted properties at " .. path)
             end
             valid = false
           end
@@ -347,7 +356,7 @@ function validate_json_object(content, schema, path, errors, extra_infos)
       if extra_infos["machine_readable"] then
         table.insert(errors, json.encode({error="object.minproperties", path=path, details=schema_minProperties}))
       else
-        table.insert(errors, "Object at " .. path .. " contains fewer properties than allowed (min: " .. schema_minProperties .. ")")
+        table.insert(errors, "Element at " .. path .. " contains fewer properties than allowed (min: " .. schema_minProperties .. ")")
       end
       valid = false
     end
@@ -360,7 +369,7 @@ function validate_json_object(content, schema, path, errors, extra_infos)
       if extra_infos["machine_readable"] then
         table.insert(errors, json.encode({error="object.maxproperties", path=path, details=schema_maxProperties}))
       else
-        table.insert(errors, "Object at " .. path .. " contains more properties than allowed (max: " .. schema_maxProperties .. ")")
+        table.insert(errors, "Element at " .. path .. " contains more properties than allowed (max: " .. schema_maxProperties .. ")")
       end
       valid = false
     end
@@ -392,14 +401,14 @@ function validate_json_integer(content, schema, path, errors, extra_infos)
     if extra_infos["machine_readable"] then
       table.insert(errors, json.encode({error="integer.wrongtype", path=path, details="not-a-number"}))
     else
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be a number, so it also can't be an integer.")
+      table.insert(errors, "Element at " .. path .. " doesn't seem to be a number, so it also can't be an integer.")
     end
     return false
   elseif math.floor(content) ~= content then
     if extra_infos["machine_readable"] then
       table.insert(errors, json.encode({error="integer.wrongtype", path=path, details="non-zero-decimal"}))
     else
-      table.insert(errors, "Object at " .. path .. " doesn't seem to be an integer.")
+      table.insert(errors, "Element at " .. path .. " doesn't seem to be an integer.")
     end
     return false
   else
