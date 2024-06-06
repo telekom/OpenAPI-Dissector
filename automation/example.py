@@ -2,7 +2,6 @@
 
 import subprocess
 import json
-import sys
 
 class TShark(object):
     always_dicts = ["data_tree", "error", "warning"]
@@ -54,6 +53,7 @@ class TShark(object):
             openapi_blocks = packet["_source"]["layers"]["openapi"]
             if not isinstance(openapi_blocks, list): openapi_blocks = [openapi_blocks]
             for openapi_block in openapi_blocks:
+                if isinstance(openapi_block["openapi.operation"], str): continue
                 openapi_block["meta"] = meta
                 streamid = openapi_block["openapi.operation"]["openapi.operation.stream_id"]
                 requests_dict[streamid] = openapi_block
@@ -82,23 +82,66 @@ class TShark(object):
 
         return requests
 
-tshark = TShark("test.pcapng")
+def data_by_path(data, path):
+    if path.startswith("root"):
+        path = path[4:]
 
-for req in tshark.requests:
-    # ignore valid or unhandled packets
-    if ("valid" not in req["request"] or req["request"]["valid"] == "Yes") and ("valid" not in req["response"] or req["response"]["valid"] == "Yes"): continue
+    if not path:
+        return data
 
-    print(f'# {req["operation"]["operation"]} {req["meta"]["connection"][0]} <-> {req["meta"]["connection"][1]}')
+    if path.startswith("["):
+        key, nextpath = path[1:].split("]", 1)
+        if key[0] in ["'", '"']:
+            key = key[1:-1]
+        try:
+            intkey = int(key)
+        except:
+            intkey = None
+        if isinstance(data, dict) and key in data:
+            return data_by_path(data[key], nextpath)
+        elif isinstance(data, dict) and intkey is not None and intkey in data:
+            return data_by_path(data[intkey], nextpath)
+        elif isinstance(data, list) and intkey is not None:
+            return data_by_path(data[intkey-1], nextpath)
+        else:
+            raise Exception("wat.")
 
-    for prefix in ["operation", "request", "response"]:
-        if ("error" in req[prefix] and req[prefix]["error"]) or ("warning" in req[prefix] and req[prefix]["warning"]):
-            print(f"## {prefix.capitalize()}")
+def main():
+    import sys
+    tshark = TShark(sys.argv[1])
 
-        if "error" in req[prefix]:
-            for error in req[prefix]["error"]:
+    for req in tshark.requests:
+        # ignore valid or unhandled packets
+        if ("valid" not in req["request"] or req["request"]["valid"] == "Yes") and ("valid" not in req["response"] or req["response"]["valid"] == "Yes"): continue
 
-                print(f"- {prefix}.error,{error}")
-        if "warning" in req[prefix]:
-            for warning in req[prefix]["warning"]:
-                print(f"- {prefix}.warning,{warning}")
+        print(f'# {req["operation"]["operation"] if "operation" in req["operation"] else req["request"]["path"]} {req["meta"]["connection"][0]} <-> {req["meta"]["connection"][1]}')
 
+        for prefix in ["operation", "request", "response"]:
+            if ("error" in req[prefix] and req[prefix]["error"]) or ("warning" in req[prefix] and req[prefix]["warning"]):
+                print(f"## {prefix.capitalize()}")
+
+            data = None
+            try:
+                if "data" in req[prefix]:
+                    data = json.loads(req[prefix]["data"])
+            except:
+                pass
+
+            for x in ["error", "warning"]:
+                if x not in req[prefix]:
+                    continue
+
+                for msg in req[prefix][x]:
+                    msgtype, msg = msg.split(",", 1)
+                    msg = json.loads(msg)
+                    msg["type"] = msgtype
+                    try:
+                        if data and "path" in msg:
+                            msg["value"] = data_by_path(data, msg["path"])
+                    except:
+                        pass
+
+                    print(f"- {prefix},{x},{msg}")
+
+if __name__ == "__main__":
+    main()
