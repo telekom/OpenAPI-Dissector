@@ -41,11 +41,16 @@ function validate_json_string(content, schema, path, errors, extra_infos)
     end
   end
 
-  if type(content) == "string" then
-    return true
+  if type(content) ~= "string" then
+    if extra_infos["machine_readable"] then
+      table.insert(errors, json.encode({error="string.wrongtype", path=path}))
+    else
+      table.insert(errors, "Element at " .. string .. " doesn't seem to be a string.")
+    end
+    return false
   end
 
-  return false
+  return true
 end
 
 function validate_json_boolean(content, schema, path, errors, extra_infos)
