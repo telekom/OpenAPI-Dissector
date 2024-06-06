@@ -558,11 +558,6 @@ function validate_json(content, schema, path, errors, extra_infos)
     local suberrors = {}
     local valid, invalid, valids = validate_multiple(content, schema, "oneOf", path, suberrors, extra_infos)
     if valid ~= 1 then
-      if extra_infos["machine_readable"] then
-        table.insert(errors, json.encode({error="oneof.criterium_failed", path=path, details={valid=valid, invalid=invalid}}))
-      else
-        table.insert(errors, "oneOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
-      end
       if valid > 1 then
         if extra_infos["machine_readable"] then
           table.insert(errors, json.encode({error="oneof.multiple_valid", path=path, details=valids}))
@@ -570,6 +565,11 @@ function validate_json(content, schema, path, errors, extra_infos)
           table.insert(errors, ">> Multiple valid in oneOf criterium: " .. table.concat(valids, ", "))
         end
       else
+        if extra_infos["machine_readable"] then
+          table.insert(errors, json.encode({error="oneof.criterium_failed", path=path, details={valid=valid, invalid=invalid}}))
+        else
+          table.insert(errors, "oneOf criterium failed on " .. path .. ": " .. valid .. " valid, " .. invalid .. " invalid")
+        end
         for k, v in pairs(suberrors) do
           if type(v) == "table" then
             if not extra_infos["machine_readable"] then
