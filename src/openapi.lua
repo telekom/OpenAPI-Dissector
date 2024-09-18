@@ -970,6 +970,10 @@ openapi_proto.prefs.machine_readable = Pref.bool("OpenAPI machine readable outpu
 
 local http2_dissector = Dissector.get("http2")
 local tcp_table = DissectorTable.get("tcp.port")
-tcp_table:add(openapi_proto.prefs.http2_ports, http2_dissector)
+
+-- quick fix for incompatibility with Wireshark v4.4.0, which did not accept ranges as comma separated Strings
+for match in openapi_proto.prefs.http2_ports:gmatch("([^,]+)") do
+  tcp_table:add(match, http2_dissector)
+end
 
 register_postdissector(openapi_proto)
