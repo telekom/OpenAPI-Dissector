@@ -78,7 +78,7 @@ def obj_to_lua(path, obj, parent=None):
 
 # Generate regular expression for path matching, including basic support for url parameters
 def generate_path_part_pattern(path, parameters):
-    path_pattern = "^" + path.replace("/", "\\/") + "$"
+    path_pattern = "^" + urllib.parse.unquote(path).replace("/", "\\/") + "$"
     for param in parameters.values():
         if "in" in param and param["in"] == "path":
             schema = param["schema"]
@@ -203,7 +203,7 @@ for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
         # Replace absolute Component paths in current document with relative paths
         if 'paths' in spec:
             for path_urlpart, pathspec in spec["paths"].items():
-                pathname = f'{document}#/paths/{urllib.parse.quote(path_urlpart).replace("/", "~1")}'
+                pathname = f'{document}#/paths/{path_urlpart.replace("/", "~1")}'
                 expand_references(pathspec, document)
                 paths[pathname] = pathspec
 
@@ -234,7 +234,7 @@ for specdir in sorted(pathlib.Path(sys.argv[1]).glob("*")):
             if 'paths' not in raw_spec: continue
             for path_urlpart, pathspec in raw_spec["paths"].items():
                 while '$ref' in pathspec:
-                    pathspec = paths[pathspec['$ref']]
+                    pathspec = paths[urllib.parse.unquote(pathspec['$ref'])]
 
                 pathspec_parameters = {}
                 if "parameters" in pathspec:
