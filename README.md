@@ -5,6 +5,9 @@ This repository contains experimental code for generating an OpenAPI dissector f
 It was mainly developed for analyzing traffic in 5G core networks, which sends JSON messages over a HTTP/2 API,
 but it could potentially be adapted for other APIs as well.
 
+A scientific paper which describes additional design and implementation details as well validation results for
+different 5GC is available at [arXiv](https://arxiv.org/abs/2405.10635).
+
 ![](doc/screenshot.png)
 
 ## Features
