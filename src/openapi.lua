@@ -21,6 +21,9 @@ local packet_map = {}
 local resp_map = {}
 local callback_map = {}
 
+-- fix for Wireshark 4.6 lazy loading mechanism (adressing issue #5)--
+local f_http2 = Field.new("http2")
+-- end
 local f_http2_data_data = Field.new("http2.data.data")
 local f_http2_length = Field.new("http2.length")
 local f_http2_headers = Field.new("http2.headers")
