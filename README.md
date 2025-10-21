@@ -8,8 +8,6 @@ but it could potentially be adapted for other APIs as well.
 A scientific paper which describes additional design and implementation details as well validation results for
 different 5GC is available at [arXiv](https://arxiv.org/abs/2405.10635).
 
-<b>Please note: This version of the OpenAPI Dissector is not (yet) compatible with Wireshark release >=4.6.0. Please use it with the 4.4.x versions.</b>
-
 ![](doc/screenshot.png)
 
 ## Features
